@@ -1,0 +1,508 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>억울이 진행판</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=Noto+Sans+KR:wght@400;500;700&display=swap">
+<style>
+:root{
+  --ink:#12171a; --ink-2:#1b2226; --ink-3:#262f34;
+  --mist:#8fa3a8; --mist-dim:#5d6d72;
+  --paper:#e9e3d5; --paper-2:#d8cfbb; --paper-ink:#2b2620;
+  --seal:#b8443a; --jade:#6a9d95; --gold:#c9a961;
+  --f-display:'Gowun Batang',serif; --f-body:'Noto Sans KR',system-ui,sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--ink);color:var(--paper);font-family:var(--f-body);font-size:15px;line-height:1.6}
+.wrap{max-width:1080px;margin:0 auto;padding:24px 20px 60px}
+
+header{display:flex;justify-content:space-between;align-items:baseline;gap:16px;flex-wrap:wrap;margin-bottom:22px}
+h1{font-family:var(--f-display);font-size:26px;font-weight:700}
+.conn{font-size:12.5px;color:var(--mist-dim)}
+.conn.ok{color:var(--jade)}
+.conn.no{color:var(--seal)}
+
+/* 진행 제어 */
+.control{
+  background:var(--ink-2);border:1px solid var(--ink-3);border-radius:5px;
+  padding:18px;margin-bottom:20px;
+}
+.control .now{
+  font-family:var(--f-display);font-size:21px;font-weight:700;margin-bottom:4px;
+}
+.control .nowsub{font-size:13px;color:var(--mist-dim);margin-bottom:16px}
+.steps{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px}
+.steps button{
+  background:transparent;border:1px solid var(--ink-3);color:var(--mist);
+  border-radius:3px;padding:9px 13px;cursor:pointer;
+  font-family:var(--f-body);font-size:13.5px;
+  transition:border-color .14s,color .14s,background .14s;
+}
+.steps button:hover{border-color:var(--mist-dim);color:var(--paper)}
+.steps button.cur{background:var(--paper);color:var(--paper-ink);border-color:var(--paper);font-weight:700}
+.steps button.past{color:var(--mist-dim);border-color:rgba(38,47,52,.6)}
+.mainbtns{display:flex;gap:9px;flex-wrap:wrap}
+.mainbtns button{
+  border:none;border-radius:3px;padding:13px 22px;cursor:pointer;
+  font-family:var(--f-body);font-size:15px;font-weight:700;
+  background:var(--paper);color:var(--paper-ink);box-shadow:0 3px 0 var(--paper-2);
+}
+.mainbtns button:active{transform:translateY(3px);box-shadow:none}
+.mainbtns button.sub{
+  background:transparent;color:var(--mist);border:1px solid var(--ink-3);
+  box-shadow:none;font-weight:500;
+}
+.mainbtns button.danger{background:transparent;color:var(--seal);border:1px solid rgba(184,68,58,.45);box-shadow:none}
+
+/* 카드 */
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:14px;margin-bottom:20px}
+.card{background:var(--ink-2);border:1px solid var(--ink-3);border-radius:5px;padding:16px}
+.card h2{font-size:11px;letter-spacing:.2em;color:var(--mist-dim);font-weight:500;margin-bottom:12px}
+.stat{font-family:var(--f-display);font-size:38px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums}
+.stat .of{font-size:17px;color:var(--mist-dim)}
+.stat.warn{color:var(--seal)}
+.stat.good{color:var(--jade)}
+.card .cap{font-size:13px;color:var(--mist-dim);margin-top:6px}
+
+/* 막대 */
+.bar{margin-bottom:10px}
+.bar .bl{display:flex;justify-content:space-between;font-size:13.5px;margin-bottom:4px}
+.bar .bl b{font-variant-numeric:tabular-nums;color:var(--mist)}
+.bar .bt{height:7px;background:var(--ink-3);border-radius:4px;overflow:hidden}
+.bar .bf{height:100%;border-radius:4px;background:var(--mist-dim);transition:width .5s}
+.bar.ok .bf{background:var(--jade)}
+.bar.no .bf{background:var(--seal)}
+
+/* 표 */
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{padding:9px 8px;text-align:left;border-bottom:1px solid var(--ink-3)}
+th{font-size:11px;letter-spacing:.12em;color:var(--mist-dim);font-weight:500}
+td.num{font-variant-numeric:tabular-nums;color:var(--mist)}
+.chip{
+  display:inline-block;padding:2px 8px;border-radius:20px;font-size:12px;
+  border:1px solid var(--ink-3);color:var(--mist);
+}
+.chip.ok{border-color:rgba(106,157,149,.5);color:var(--jade)}
+.chip.no{border-color:rgba(184,68,58,.5);color:var(--seal)}
+.tablewrap{overflow-x:auto}
+
+.setup{
+  background:rgba(184,68,58,.08);border:1px solid rgba(184,68,58,.35);
+  border-radius:5px;padding:18px;margin-bottom:20px;font-size:14px;line-height:1.8;
+}
+.setup b{color:var(--seal)}
+.setup code{
+  background:var(--ink-2);padding:2px 6px;border-radius:3px;
+  font-size:13px;color:var(--gold);
+}
+.empty{color:var(--mist-dim);font-size:14px;padding:14px 0}
+
+/* 화면 잠금 */
+.lockbar{
+  display:flex;gap:8px;flex-wrap:wrap;align-items:center;
+  margin-top:16px;padding-top:16px;border-top:1px solid var(--ink-3);
+}
+.lockbar .lb{font-size:11px;letter-spacing:.2em;color:var(--mist-dim);margin-right:4px}
+.lockbar button{
+  background:transparent;border:1px solid var(--ink-3);color:var(--mist);
+  border-radius:3px;padding:9px 13px;cursor:pointer;
+  font-family:var(--f-body);font-size:13.5px;
+}
+.lockbar button:hover{border-color:var(--mist-dim);color:var(--paper)}
+.lockbar button.on{background:var(--gold);color:#12171a;border-color:var(--gold);font-weight:700}
+.lockbar button.free{border-color:rgba(106,157,149,.5);color:var(--jade)}
+
+/* 발표 모드 — 교실 스크린용 */
+#present{
+  position:fixed;inset:0;z-index:80;display:none;
+  background:var(--ink);padding:4vh 5vw;
+  flex-direction:column;
+}
+#present.on{display:flex}
+#present .pt{font-size:14px;letter-spacing:.3em;color:var(--mist-dim);margin-bottom:10px}
+#present h2{
+  font-family:var(--f-display);font-weight:700;
+  font-size:clamp(30px,5.5vw,64px);line-height:1.2;margin-bottom:6px;text-wrap:balance;
+}
+#present .ans{
+  font-family:var(--f-display);font-size:clamp(20px,2.6vw,32px);
+  color:var(--gold);margin-bottom:4vh;
+}
+#present .pbars{flex:1 1 auto;display:flex;flex-direction:column;justify-content:center;gap:2.2vh}
+#present .pb .pl{
+  display:flex;justify-content:space-between;align-items:baseline;
+  font-size:clamp(18px,2.4vw,30px);margin-bottom:8px;
+}
+#present .pb .pl b{font-variant-numeric:tabular-nums;color:var(--paper)}
+#present .pb .pt2{height:clamp(14px,2vh,26px);background:var(--ink-3);border-radius:99px;overflow:hidden}
+#present .pb .pf{height:100%;border-radius:99px;background:var(--mist-dim);transition:width .7s cubic-bezier(.4,0,.2,1)}
+#present .pb.ok .pf{background:var(--jade)}
+#present .pb.no .pf{background:var(--seal)}
+#present .pb.ok .pl{color:var(--jade)}
+#present .foot{
+  display:flex;justify-content:space-between;align-items:baseline;
+  font-size:clamp(15px,1.8vw,22px);color:var(--mist-dim);
+  padding-top:3vh;border-top:1px solid var(--ink-3);
+}
+#present .foot b{color:var(--paper);font-variant-numeric:tabular-nums}
+#present .x{
+  position:absolute;top:2vh;right:2vw;
+  background:transparent;border:1px solid var(--ink-3);color:var(--mist);
+  border-radius:3px;padding:8px 14px;cursor:pointer;font-family:var(--f-body);font-size:14px;
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <h1>억울이 진행판</h1>
+    <span class="conn" id="conn">연결 확인 중…</span>
+  </header>
+
+  <div class="setup" id="setup" style="display:none">
+    <b>아직 Firebase 설정이 비어 있습니다.</b><br>
+    이 화면 아래쪽 <code>FIREBASE_CONFIG</code> 와 <code>index.html</code> 의 같은 자리에
+    콘솔에서 복사한 값을 붙여넣으면 실시간으로 연결됩니다.
+  </div>
+
+  <!-- 진행 제어 -->
+  <section class="control">
+    <div class="now" id="nowLabel">아직 시작 전</div>
+    <div class="nowsub" id="nowSub">아래 버튼을 누르면 학생들 화면이 동시에 넘어갑니다.</div>
+    <div class="steps" id="steps"></div>
+    <div class="mainbtns">
+      <button id="btnNext">다음 사건 열기</button>
+      <button class="sub" id="btnPrev">한 단계 뒤로</button>
+      <button class="danger" id="btnReset">처음으로 되돌리기</button>
+      <button class="danger" id="btnClear">학생 기록 전체 지우기</button>
+      <button class="sub" id="btnPresent">발표 화면 (스크린용)</button>
+    </div>
+
+    <div class="lockbar">
+      <span class="lb">학생 화면</span>
+      <button class="free" id="lkOff">자유롭게</button>
+      <button id="lkLook">선생님 보세요</button>
+      <button id="lkDist">우리 반 분포 띄우기</button>
+      <button id="lkTalk">이야기 나누기</button>
+    </div>
+  </section>
+
+  <!-- 요약 -->
+  <div class="grid">
+    <div class="card">
+      <h2>접속</h2>
+      <div class="stat" id="nTotal">0<span class="of">명</span></div>
+      <div class="cap">번호표를 받은 학생</div>
+    </div>
+    <div class="card">
+      <h2>이번 단계를 마친 사람</h2>
+      <div class="stat" id="nDone">0<span class="of"> / 0</span></div>
+      <div class="cap" id="doneCap">다 끝나면 다음 사건을 여세요</div>
+    </div>
+    <div class="card">
+      <h2>헌법재판소를 고른 학생</h2>
+      <div class="stat warn" id="nCC">0<span class="of">명</span></div>
+      <div class="cap">법원과 헌재를 구분하는지 보는 지표</div>
+    </div>
+  </div>
+
+  <!-- 이번 회차 분포 -->
+  <div class="grid">
+    <div class="card">
+      <h2>이번 사건 · 어디로 갔나</h2>
+      <div id="distNow"><div class="empty">아직 응답이 없습니다.</div></div>
+    </div>
+    <div class="card">
+      <h2>회차별 정답률</h2>
+      <div id="rateAll"><div class="empty">아직 응답이 없습니다.</div></div>
+    </div>
+  </div>
+
+  <!-- 학생 목록 -->
+  <div class="card">
+    <h2>학생별 현황</h2>
+    <div class="tablewrap">
+      <table>
+        <thead><tr>
+          <th>학번 이름</th><th>진행</th>
+          <th>1</th><th>2</th><th>3</th><th>4</th><th>5</th>
+          <th>스피드</th><th class="num">한(恨)</th>
+        </tr></thead>
+        <tbody id="rows"><tr><td colspan="9" class="empty">아직 아무도 접속하지 않았습니다.</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<div id="present">
+  <button class="x" id="btnPresentX">닫기 (Esc)</button>
+  <div class="pt" id="prTicket">—</div>
+  <h2 id="prTitle">아직 시작 전</h2>
+  <div class="ans" id="prAns"></div>
+  <div class="pbars" id="prBars"></div>
+  <div class="foot">
+    <span>제출 <b id="prDone">0</b> / <b id="prTotal">0</b></span>
+    <span id="prNote"></span>
+  </div>
+</div>
+
+<script type="module">
+/* ─────────────────────────────────────────────
+   Firebase 설정 — index.html 과 똑같은 값을 넣으세요.
+   ───────────────────────────────────────────── */
+const FIREBASE_CONFIG = {
+  apiKey: "",
+  authDomain: "",
+  projectId: "",
+  storageBucket: "",
+  messagingSenderId: "",
+  appId: ""
+};
+
+const PHASES = [
+  {i:-1, label:'대기실',        short:'대기'},
+  {i:0,  label:'1회차 · 중고거래', short:'1회차'},
+  {i:1,  label:'2회차 · 급식',    short:'2회차'},
+  {i:2,  label:'3회차 · 이혼',    short:'3회차'},
+  {i:3,  label:'4회차 · 파산',    short:'4회차'},
+  {i:4,  label:'5회차 · 상표',    short:'5회차'},
+  {i:5,  label:'6회차 · 3심제',   short:'6회차'},
+  {i:6,  label:'7회차 · 스피드',  short:'7회차'},
+  {i:7,  label:'엔딩',           short:'엔딩'}
+];
+const ANSWERS = {1:'지방법원',2:'행정법원',3:'가정법원',4:'회생법원',5:'특허법원'};
+const OPTIONS = {
+  1:['지방법원','가정법원','회생법원','헌법재판소'],
+  2:['지방법원','행정법원','가정법원','헌법재판소'],
+  3:['지방법원','가정법원','행정법원','회생법원'],
+  4:['지방법원','행정법원','회생법원','가정법원'],
+  5:['지방법원','행정법원','특허법원','가정법원']
+};
+
+const $ = s => document.querySelector(s);
+let DB=null, api=null, phase=-1, students={}, lock={on:false,mode:'look'};
+
+if(!FIREBASE_CONFIG.apiKey){
+  // 설정 전에도 화면이 어떻게 보이는지 알 수 있게 예시 자료를 띄웁니다.
+  $('#setup').style.display='block';
+  $('#conn').textContent='예시 화면 (실제 연결 안 됨)';
+  $('#conn').className='conn no';
+  // 발표 화면은 설정 전에도 미리 볼 수 있게 열어둡니다
+  ['btnNext','btnPrev','btnReset','btnClear'].forEach(id=>document.getElementById(id).disabled=true);
+  document.querySelectorAll('.lockbar button').forEach(b=>b.disabled=true);
+  const demo=[['20101 김서준','지방법원',1],['20102 이하윤','가정법원',0],
+              ['20103 박도윤','지방법원',1],['20104 최지우','지방법원',1],
+              ['20105 정시우','헌법재판소',0],['20106 강예은','지방법원',1],
+              ['20107 윤하람','회생법원',0]];
+  demo.forEach(([n,c,ok],i)=>{
+    students[n]={name:n,phase:0,gauge:80+i*3,speed:[true,true,false,true,true,false],
+      ans:{1:{choice:c,ok:!!ok,whyOk:!!ok},
+           2:{choice:i<5?'행정법원':'지방법원',ok:i<5}},
+      done:{1:i<6}};
+  });
+  phase=0;
+}else{
+  const { initializeApp } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js');
+  const m = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+  DB = m.getFirestore(initializeApp(FIREBASE_CONFIG));
+  api = m;
+  $('#conn').textContent='연결됨';
+  $('#conn').className='conn ok';
+
+  m.onSnapshot(m.doc(DB,'live','state'), snap=>{
+    const d = snap.exists() ? snap.data() : {};
+    phase = d.round ?? -1;
+    lock  = d.lock  || {on:false,mode:'look'};
+    paint();
+  });
+  m.onSnapshot(m.collection(DB,'students'), snap=>{
+    students={};
+    snap.forEach(d=>students[d.id]=d.data());
+    paint();
+  });
+}
+
+async function setPhase(n){
+  if(!DB) return;
+  await api.setDoc(api.doc(DB,'live','state'),{round:n,ts:Date.now()},{merge:true});
+}
+
+/* 학생 화면 잠금 — 설명하는 동안 앞서 나가지 못하게 */
+async function setLock(on,mode){
+  if(!DB) return;
+  await api.setDoc(api.doc(DB,'live','state'),{lock:{on,mode:mode||'look'}},{merge:true});
+}
+$('#lkOff').onclick  = ()=>setLock(false);
+$('#lkLook').onclick = ()=>setLock(true,'look');
+$('#lkDist').onclick = ()=>setLock(true,'dist');
+$('#lkTalk').onclick = ()=>setLock(true,'talk');
+
+/* 발표 화면 */
+const present=$('#present');
+$('#btnPresent').onclick =()=>{ present.classList.add('on'); paintPresent(); };
+$('#btnPresentX').onclick=()=>present.classList.remove('on');
+document.addEventListener('keydown',e=>{ if(e.key==='Escape') present.classList.remove('on'); });
+
+$('#btnNext').onclick = ()=>setPhase(Math.min(7, phase+1));
+$('#btnPrev').onclick = ()=>setPhase(Math.max(-1, phase-1));
+$('#btnReset').onclick= ()=>{ if(confirm('학생 화면을 모두 대기실로 되돌립니다.')) setPhase(-1); };
+$('#btnClear').onclick= async ()=>{
+  if(!DB) return;
+  if(!confirm('학생 응답 기록을 전부 지웁니다. 다음 반 수업 전에 쓰세요. 계속할까요?')) return;
+  const snap = await api.getDocs(api.collection(DB,'students'));
+  await Promise.all(snap.docs.map(d=>api.deleteDoc(d.ref)));
+  setPhase(-1);
+};
+
+function paint(){
+  // 잠금 버튼 상태
+  const lm = lock.on ? lock.mode : 'off';
+  $('#lkOff').classList.toggle('on', !lock.on);
+  $('#lkLook').classList.toggle('on', lm==='look');
+  $('#lkDist').classList.toggle('on', lm==='dist');
+  $('#lkTalk').classList.toggle('on', lm==='talk');
+
+  const cur = PHASES.find(p=>p.i===phase) || PHASES[0];
+  $('#nowLabel').textContent = '지금 열려 있는 것 — ' + cur.label;
+
+  // 단계 버튼
+  $('#steps').innerHTML='';
+  PHASES.forEach(p=>{
+    const b=document.createElement('button');
+    b.textContent=p.short;
+    b.className = p.i===phase ? 'cur' : (p.i<phase ? 'past' : '');
+    b.onclick=()=>setPhase(p.i);
+    $('#steps').appendChild(b);
+  });
+
+  const rows = Object.entries(students);
+  const total = rows.length;
+  $('#nTotal').innerHTML = total + '<span class="of">명</span>';
+
+  // 이번 단계 완료 인원
+  const done = rows.filter(([,s]) => (s.done||{})[phase>=0&&phase<5 ? phase+1 : (phase===5?6:(phase===6?7:0))]).length;
+  const shown = phase>=0 && phase<=6 ? done : 0;
+  $('#nDone').innerHTML = shown + '<span class="of"> / ' + total + '</span>';
+  $('#nDone').className = 'stat' + (total && shown===total ? ' good' : '');
+  $('#doneCap').textContent = (total && shown===total)
+    ? '전원 완료 — 다음 사건을 여세요' : '다 끝나면 다음 사건을 여세요';
+
+  // 헌법재판소 선택 수 (누적)
+  let cc=0;
+  rows.forEach(([,s])=>{
+    Object.values(s.ans||{}).forEach(a=>{ if(a.choice==='헌법재판소') cc++; });
+  });
+  $('#nCC').innerHTML = cc + '<span class="of">명</span>';
+
+  // 이번 회차 분포
+  const rid = phase>=0 && phase<5 ? phase+1 : null;
+  const dn = $('#distNow');
+  if(!rid){ dn.innerHTML='<div class="empty">회차가 열리면 표시됩니다.</div>'; }
+  else{
+    const cnt={}; OPTIONS[rid].forEach(o=>cnt[o]=0);
+    let ans=0;
+    rows.forEach(([,s])=>{
+      const a=(s.ans||{})[rid];
+      if(a && a.choice in cnt){ cnt[a.choice]++; ans++; }
+    });
+    dn.innerHTML = ans ? OPTIONS[rid].map(o=>{
+      const pct = ans? (cnt[o]/ans*100) : 0;
+      const cls = o===ANSWERS[rid] ? 'ok' : (cnt[o]?'no':'');
+      return `<div class="bar ${cls}"><div class="bl"><span>${o}</span><b>${cnt[o]}명</b></div>
+        <div class="bt"><div class="bf" style="width:${pct.toFixed(0)}%"></div></div></div>`;
+    }).join('') : '<div class="empty">아직 응답이 없습니다.</div>';
+  }
+
+  // 회차별 정답률
+  const ra=$('#rateAll');
+  let any=false, html='';
+  for(let r=1;r<=5;r++){
+    let n=0,ok=0;
+    rows.forEach(([,s])=>{ const a=(s.ans||{})[r]; if(a){n++; if(a.ok) ok++;} });
+    if(!n) continue;
+    any=true;
+    const pct=ok/n*100;
+    html+=`<div class="bar ${pct>=70?'ok':'no'}"><div class="bl"><span>${r}회차 · ${ANSWERS[r]}</span><b>${ok}/${n}</b></div>
+      <div class="bt"><div class="bf" style="width:${pct.toFixed(0)}%"></div></div></div>`;
+  }
+  ra.innerHTML = any ? html : '<div class="empty">아직 응답이 없습니다.</div>';
+
+  // 학생 목록
+  const tb=$('#rows');
+  if(!total){ tb.innerHTML='<tr><td colspan="9" class="empty">아직 아무도 접속하지 않았습니다.</td></tr>'; return; }
+  tb.innerHTML = rows
+    .sort((a,b)=>(a[1].name||'').localeCompare(b[1].name||''))
+    .map(([,s])=>{
+      const cells=[1,2,3,4,5].map(r=>{
+        const a=(s.ans||{})[r];
+        if(!a) return '<td>·</td>';
+        const cls=a.ok?'ok':'no';
+        return `<td><span class="chip ${cls}">${a.choice.replace('법원','').replace('헌법재판소','헌재')}</span></td>`;
+      }).join('');
+      const sp=(s.speed||[]).filter(Boolean).length;
+      const spTxt=(s.speed||[]).length? `${sp}/6` : '·';
+      const ph=PHASES.find(p=>p.i===(s.phase??-1));
+      return `<tr><td>${escape2(s.name||'')}</td><td class="num">${ph?ph.short:'—'}</td>${cells}
+        <td class="num">${spTxt}</td><td class="num">${s.gauge??''}</td></tr>`;
+    }).join('');
+
+  if(present.classList.contains('on')) paintPresent();
+}
+
+/* ── 발표 화면 — 교실 스크린에 띄우는 큰 화면 ── */
+const TITLES = {1:'30만 원짜리 벽돌',2:'급식에서 나온 그것',3:'나는 누구랑 살아요?',
+                4:'현관에 붙은 빨간 스티커',5:'내 채널 이름을 대기업이 가져갔다'};
+function paintPresent(){
+  const rows=Object.entries(students);
+  const total=rows.length;
+  const rid = phase>=0 && phase<5 ? phase+1 : null;
+  const cur = PHASES.find(p=>p.i===phase) || PHASES[0];
+
+  $('#prTicket').textContent = cur.label;
+  $('#prTotal').textContent = total;
+
+  if(!rid){
+    $('#prTitle').textContent = cur.label;
+    $('#prAns').textContent = '';
+    $('#prBars').innerHTML = '';
+    $('#prDone').textContent = '0';
+    $('#prNote').textContent = phase<0 ? '아직 시작 전입니다' : '';
+    return;
+  }
+
+  $('#prTitle').textContent = TITLES[rid] || cur.label;
+  const cnt={}; OPTIONS[rid].forEach(o=>cnt[o]=0);
+  let ans=0, ok=0;
+  rows.forEach(([,s])=>{
+    const a=(s.ans||{})[rid];
+    if(a && a.choice in cnt){ cnt[a.choice]++; ans++; if(a.ok) ok++; }
+  });
+  $('#prDone').textContent = ans;
+
+  // 다 낼 때까지는 정답을 감춥니다
+  const reveal = total>0 && ans>=total;
+  $('#prAns').textContent = reveal ? `정답 · ${ANSWERS[rid]}` : '아직 고르는 중…';
+
+  $('#prBars').innerHTML = OPTIONS[rid].map(o=>{
+    const pct = ans ? (cnt[o]/ans*100) : 0;
+    const cls = reveal ? (o===ANSWERS[rid] ? 'ok' : (cnt[o]?'no':'')) : '';
+    return `<div class="pb ${cls}"><div class="pl"><span>${o}</span><b>${cnt[o]}명</b></div>
+      <div class="pt2"><div class="pf" style="width:${pct.toFixed(0)}%"></div></div></div>`;
+  }).join('');
+
+  $('#prNote').textContent = reveal
+    ? `정답 ${ok}명 · 오답 ${ans-ok}명`
+    : `${total-ans}명이 아직 고르는 중`;
+}
+
+function escape2(t){ return String(t).replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c])); }
+
+paint();
+</script>
+</body>
+</html>
