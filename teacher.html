@@ -153,9 +153,46 @@ td.num{font-variant-numeric:tabular-nums;color:var(--mist)}
   background:transparent;border:1px solid var(--ink-3);color:var(--mist);
   border-radius:3px;padding:8px 14px;cursor:pointer;font-family:var(--f-body);font-size:14px;
 }
+
+/* 진입 암호 */
+#gate{
+  position:fixed;inset:0;z-index:200;display:grid;place-items:center;
+  background:var(--ink);padding:24px;
+}
+#gate.off{display:none}
+#gate .gbox{
+  background:var(--ink-2);border:1px solid var(--ink-3);border-radius:5px;
+  padding:30px 26px;width:100%;max-width:360px;text-align:center;
+}
+#gate h2{font-family:var(--f-display);font-size:22px;font-weight:700;margin-bottom:6px}
+#gate p{font-size:13.5px;color:var(--mist-dim);margin-bottom:20px}
+#gate input{
+  width:100%;background:var(--ink);border:1px solid var(--ink-3);border-radius:3px;
+  color:var(--paper);font-family:inherit;font-size:17px;padding:13px;text-align:center;
+  letter-spacing:.1em;margin-bottom:12px;
+}
+#gate input:focus{outline:2px solid var(--gold);outline-offset:1px}
+#gate button{
+  width:100%;border:none;border-radius:3px;padding:13px;cursor:pointer;
+  font-family:inherit;font-size:15px;font-weight:700;
+  background:var(--paper);color:var(--paper-ink);box-shadow:0 3px 0 var(--paper-2);
+}
+#gate .err{font-size:13px;color:var(--seal);min-height:20px;margin-top:10px}
+body.locked .wrap{display:none}
 </style>
 </head>
-<body>
+<body class="locked">
+
+<div id="gate">
+  <div class="gbox">
+    <h2>진행판</h2>
+    <p>선생님용 화면입니다</p>
+    <input id="gcode" type="password" placeholder="암호" autocomplete="off">
+    <button id="gbtn">들어가기</button>
+    <div class="err" id="gerr"></div>
+  </div>
+</div>
+
 <div class="wrap">
 
   <header>
@@ -239,6 +276,32 @@ td.num{font-variant-numeric:tabular-nums;color:var(--mist)}
 
 </div>
 
+<script>
+/* ─────────────────────────────────────────────
+   진행판 암호 — 학생이 들어와서 진도를 건드리지 못하게 막습니다.
+   아래 값을 바꿔서 쓰세요.
+   ───────────────────────────────────────────── */
+const TEACHER_CODE = "1234";
+
+(function(){
+  const gate=document.getElementById('gate');
+  const open=()=>{ gate.classList.add('off'); document.body.classList.remove('locked'); };
+  try{ if(localStorage.getItem('eogul_teacher')===TEACHER_CODE) open(); }catch(e){}
+  const tryIn=()=>{
+    const v=document.getElementById('gcode').value;
+    if(v===TEACHER_CODE){
+      try{ localStorage.setItem('eogul_teacher',v); }catch(e){}
+      open();
+    }else{
+      document.getElementById('gerr').textContent='암호가 다릅니다';
+      document.getElementById('gcode').select();
+    }
+  };
+  document.getElementById('gbtn').onclick=tryIn;
+  document.getElementById('gcode').addEventListener('keydown',e=>{ if(e.key==='Enter') tryIn(); });
+})();
+</script>
+
 <div id="present">
   <button class="x" id="btnPresentX">닫기 (Esc)</button>
   <div class="pt" id="prTicket">—</div>
@@ -256,12 +319,12 @@ td.num{font-variant-numeric:tabular-nums;color:var(--mist)}
    Firebase 설정 — index.html 과 똑같은 값을 넣으세요.
    ───────────────────────────────────────────── */
 const FIREBASE_CONFIG = {
-  apiKey: "",
-  authDomain: "",
-  projectId: "",
-  storageBucket: "",
-  messagingSenderId: "",
-  appId: ""
+  apiKey: "AIzaSyApUKeVhJ0EnOm_wu1vcT-14yeax7iQR7I",
+  authDomain: "court-ae96f.firebaseapp.com",
+  projectId: "court-ae96f",
+  storageBucket: "court-ae96f.firebasestorage.app",
+  messagingSenderId: "397308728790",
+  appId: "1:397308728790:web:d6d10fac3865e547d24077"
 };
 
 const PHASES = [
@@ -306,7 +369,7 @@ if(!FIREBASE_CONFIG.apiKey){
       done:{1:i<6}};
   });
   phase=0;
-}else{
+}else try{
   const { initializeApp } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js');
   const m = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
   DB = m.getFirestore(initializeApp(FIREBASE_CONFIG));
@@ -325,6 +388,17 @@ if(!FIREBASE_CONFIG.apiKey){
     snap.forEach(d=>students[d.id]=d.data());
     paint();
   });
+}catch(e){
+  // 학교 인터넷이 서버를 막았을 때
+  $('#conn').textContent='연결 안 됨 — 인터넷을 확인하세요';
+  $('#conn').className='conn no';
+  $('#setup').style.display='block';
+  $('#setup').innerHTML='<b>서버에 연결하지 못했습니다.</b><br>'+
+    '학교 인터넷이 막고 있거나 잠시 끊긴 상태입니다. '+
+    '진도 제어와 실시간 자료는 쓸 수 없지만, <b>발표 화면</b>과 수업 자체는 그대로 진행하실 수 있습니다.';
+  ['btnNext','btnPrev','btnReset','btnClear'].forEach(id=>document.getElementById(id).disabled=true);
+  document.querySelectorAll('.lockbar button').forEach(b=>b.disabled=true);
+  console.warn(e);
 }
 
 async function setPhase(n){
