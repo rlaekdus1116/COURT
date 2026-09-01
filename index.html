@@ -2777,7 +2777,7 @@ function afterPrologue(){
    진도를 제어할 수 있습니다. 비워두면 혼자 연습하는 모드로 돕니다.
    ═══════════════════════════════════════════ */
 
-const LIVE = { on:false, students:{}, phase:-1, clearedAt:0 };
+const LIVE = { on:false, students:{}, phase:-1, clearedAt:0, wipedAt:0 };
 
 window.addEventListener('fb-ready', ()=>{
   const {db,doc,setDoc,onSnapshot,collection} = window.__fb;
@@ -2788,15 +2788,15 @@ window.addEventListener('fb-ready', ()=>{
   onSnapshot(doc(db,'live','state'),snap=>{
     const d = snap.exists() ? snap.data() : {};
     LIVE.clearedAt = d.clearedAt || 0;
-    if(wipeIfCleared()) return;          // 선생님이 기록을 지웠으면 나도 처음부터
+    const wiped = wipeIfCleared();       // 기록만 비웁니다. 화면 이동은 아래에서 한 번에.
     applyLock(d.lock);
     LIVE.spin = d.spin || null;
     onSpinUpdate();
     const n = d.round ?? -1;
-    if(n===LIVE.phase) return;
-    LIVE.phase=n;
+    const moved = (n !== LIVE.phase);
+    LIVE.phase = n;
     if(!S.id) return;                    // 아직 이름 안 넣음
-    if(n>S.phase || n<S.phase) jumpTo(n);
+    if(moved || wiped || n !== S.phase) jumpTo(n);
   });
 
   // 반 전체 현황
@@ -2873,18 +2873,16 @@ function applyState(d){
 function wipeIfCleared(){
   const cut = LIVE.clearedAt || 0;
   if(!cut) return false;
-  const mine = S.savedAt || 0;
-  if(mine >= cut) return false;
+  if(LIVE.wipedAt === cut) return false;          // 같은 지우기는 한 번만
+  if((S.savedAt || 0) >= cut){ LIVE.wipedAt = cut; return false; }
+  LIVE.wipedAt = cut;
   try{ localStorage.removeItem('eogul_state'); }catch(e){}
   S.ans={}; S.bonus={}; S.done={}; S.balance={}; S.seenSpin={};
   S.speedRes=[]; S.speedMs=[]; S.cheer=null; S.life8='';
-  S.wrong=[]; S.spinsDone=0; S.gauge=100; S.savedAt=0;
-  LIVE.pulled=true;                      // 서버의 옛 기록도 덮어쓰지 않게
-  if(S.id){
-    S.phase = LIVE.phase;
-    setGaugeNow();
-    gotoPhase(LIVE.phase);
-  }
+  S.wrong=[]; S.spinsDone=0; S.gauge=100;
+  S.savedAt = Date.now();                         // 이제 내 기록은 지운 시각 이후
+  S.phase = -1;
+  setGaugeNow();
   return true;
 }
 
@@ -2927,12 +2925,15 @@ function setGaugeNow(){
 
 /* 내 상태를 서버로 */
 function push(){
+  if(!S.id) return;              // 이름을 넣기 전에는 절대 저장하지 않습니다
+                                 // (빈 기록이 폰에 덮어써져서 이어하기가 깨졌습니다)
   const data={
     name:S.id, phase:S.phase, gauge:S.gauge,
     ans:S.ans, bonus:S.bonus, done:S.done,
     balance:S.balance, seenSpin:S.seenSpin, spins:S.spinsDone||0, cheer:S.cheer||null, life8:S.life8||'',
     speed:S.speedRes, speedMs:S.speedMs, ts:Date.now()
   };
+  S.savedAt = data.ts;
   if(LIVE.on && LIVE.write) LIVE.write(data);
   else console.log('[연습 모드]',data);
   try{ localStorage.setItem('eogul_state',JSON.stringify(data)); }catch(e){}
