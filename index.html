@@ -1037,6 +1037,49 @@ p{margin-bottom:12px}
   font-variant-numeric:tabular-nums;margin-right:3px;
 }
 .spin-sub{margin-top:12px;font-size:13px;color:var(--mist-dim)}
+
+/* ── 룰렛 팝업 ───────────────────────────── */
+#pop{
+  position:fixed;inset:0;z-index:70;display:none;
+  background:rgba(9,12,14,.86);backdrop-filter:blur(3px);
+  place-items:center;padding:24px;
+}
+#pop.on{display:grid;animation:popFade .25s ease-out}
+@keyframes popFade{from{opacity:0}to{opacity:1}}
+.pop-card{
+  width:100%;max-width:340px;text-align:center;
+  background:var(--ink-2);border:1px solid rgba(201,169,97,.4);
+  border-radius:6px;padding:30px 22px 26px;
+  box-shadow:0 20px 60px rgba(0,0,0,.6);
+  animation:popIn .38s cubic-bezier(.2,1.2,.4,1) both;
+}
+@keyframes popIn{from{opacity:0;transform:translateY(14px) scale(.94)}to{opacity:1;transform:none}}
+.pop-eye{font-size:12px;letter-spacing:.16em;color:var(--gold);margin-bottom:14px}
+.pop-nm{
+  font-family:var(--f-hand);font-size:46px;line-height:1.1;color:var(--paper);
+  animation:whoPulse 1.8s ease-in-out infinite;
+}
+.pop-sub{font-size:15px;color:var(--mist);margin-top:6px;margin-bottom:20px}
+.pop-wait{font-size:14px;color:var(--mist-dim)}
+
+/* ── 다 같이 넘기기 · 기다리는 줄 ─────────── */
+.hold{
+  margin-top:20px;text-align:center;
+  background:var(--ink-2);border:1px solid var(--ink-3);
+  border-radius:4px;padding:16px 14px;
+}
+.hold-m{
+  font-family:var(--f-display);font-weight:700;font-size:15px;color:var(--paper);
+  display:flex;align-items:center;justify-content:center;gap:7px;
+}
+.hold-n{margin-top:8px;font-size:14px;color:var(--mist);font-variant-numeric:tabular-nums}
+.hold-n b{color:var(--gold);font-size:17px}
+.hold-s{margin-top:8px;font-size:12.5px;color:var(--mist-dim);line-height:1.6}
+.bal-opts button.picked,.courts .court.picked{
+  border-color:var(--gold);box-shadow:0 0 0 1px rgba(201,169,97,.35) inset;
+}
+.bal-opts button.faded,.courts .court.faded{opacity:.28}
+.bal-opts button:disabled,.courts .court:disabled{cursor:default;transform:none}
 .spin-btn{
   width:100%;margin-top:18px;border:none;border-radius:4px;padding:18px;
   cursor:pointer;font-family:var(--f-display);font-weight:700;font-size:19px;
@@ -1172,6 +1215,7 @@ svg#mp-korea .mp-badge.on{opacity:1}
 <div id="flash"></div>
 <div id="doors"><div></div><div></div></div>
 <div id="rebirth"></div>
+<div id="pop"></div>
 <div id="bonus"><div class="bx" id="bonusBox"></div></div>
 <div id="lock">
   <div class="lk-eye"></div>
@@ -1344,7 +1388,7 @@ const ROUNDS = [
 {
   id:1, ticket:'1회차', title:'30만 원짜리 벽돌',
   art:'bg-parcel.webp — 택배 상자 속 벽돌',
-  intro:'억울이, 중2. 6개월 동안 용돈을 모았다. 30만 원.',
+  intro:'억울이, 고3. 6개월 동안 용돈을 모았다. 30만 원.',
   story:{type:'dm', handle:'phone_market_2', sub:'팔로워 12명 · 게시물 3개', lines:[
     ['them','아이폰 S급이에요 ㅎㅎ 오늘만 30에 드림'],
     ['me','입금했습니다!!!'],
@@ -1511,7 +1555,7 @@ const BALANCE = {
 };
 
 /* 환생 룰렛 — 회차별 진짜 신분 */
-const LIVES = ['중학생','영양교사','중학생','중학생','중3 유튜버','대학생 알바생'];
+const LIVES = ['고3 수험생','영양교사','중2 학생','치킨집 사장 딸','중3 유튜버','대학생 알바생'];
 const DECOYS = ['붕어빵 장수','프로게이머','고양이','택배기사','아이돌 연습생','버스 기사',
                 '수학 선생님','트로트 가수','편의점 사장','캠핑장 주인','피아노 조율사','동네 반장'];
 
@@ -1753,7 +1797,72 @@ function courtSVG(name){
 }
 
 /* 라우터 — 교사가 여는 단계에 따라 이동 */
+/* ── 다 같이 넘기기 — 회차 안의 단계 ──────────
+   0 밸런스 고르기 · 1 밸런스 결과 · 2 룰렛
+   3 사연 · 4 법원 고르기 · 5 판결 공개 · 6 이유와 해설
+   ───────────────────────────────────────── */
+const STEP_NAMES = ['밸런스게임','밸런스 결과','환생 룰렛','사연','법원 고르기','판결 공개','이유와 해설'];
+
+function renderRoundStep(){
+  const n=S.phase;
+  if(n<0 || n>=ROUNDS.length) return gotoPhaseFree(n);
+  const r=ROUNDS[n], st=LIVE.step||0;
+  S.round=n;
+  $('#ticket').textContent=r.ticket;
+  if(st<=0)  return startBalance(n);
+  if(st===1) return showBalanceResult(n);
+  if(st===2){
+    if(S.seenSpin[n] && (LIVE.spin||{}).spun){ openRoundScreen(r); return renderStory(r); }
+    return startSpin(n);
+  }
+  if(st===3){ openRoundScreen(r); return renderStory(r); }
+  if(st===4){ openRoundScreen(r); return renderQuestion(r); }
+  if(st===5) return showVerdict(r);
+  return renderWhy(r);
+}
+
+function openRoundScreen(r){
+  go('s-round');
+  const ra=ROUND_ART[r.id];
+  if(ra) setArt(ra.bg[0], ra.bg[1]);
+}
+
+/* 지금 이 단계까지 온 사람 수 */
+function holdCount(kind){
+  const rows=Object.values(LIVE.students);
+  const n=S.phase, r=ROUNDS[n];
+  let done=0;
+  rows.forEach(v=>{
+    if(kind==='balance') { if(v.balance && v.balance[n]) done++; }
+    else if(kind==='ans'){ if(v.ans && v.ans[r.id]) done++; }
+    else if(kind==='why'){ if(v.ans && v.ans[r.id] && v.ans[r.id].whyOk!==undefined) done++; }
+  });
+  return {done, total:rows.length};
+}
+
+function holdStrip(kind, msg){
+  return `<div class="hold" data-kind="${kind}">
+    <div class="hold-m"><span class="live-dot"></span>${msg}</div>
+    <div class="hold-n" id="holdN">집계 중…</div>
+    <div class="hold-s">선생님이 넘겨줄 때까지 기다려 주세요</div>
+  </div>`;
+}
+function paintHold(){
+  const box=document.querySelector('.hold'); if(!box) return;
+  const c=holdCount(box.dataset.kind);
+  const el=$('#holdN'); if(!el) return;
+  el.innerHTML = c.total ? `<b>${c.done}</b> / ${c.total} 명 제출` : '나 혼자 있습니다';
+}
+
 function gotoPhase(n){
+  S.phase=n;
+  if(n<0) return showLobby();
+  if(together() && n<ROUNDS.length) return renderRoundStep();
+  return gotoPhaseFree(n);
+}
+
+/* 각자 풀기 모드 — 학생이 스스로 넘어갑니다 */
+function gotoPhaseFree(n){
   S.phase=n;
   if(n<0) return showLobby();
 
@@ -1786,14 +1895,34 @@ function startBalance(n){
       <div class="bal-vs">vs</div>
       <button data-v="B"><span class="tag">B</span>${b.b}</button>
     </div>
-    <p class="dim" style="text-align:center;font-size:13.5px;margin-top:16px">정답은 없습니다. 그냥 고르세요.</p>`;
+    <p class="dim" style="text-align:center;font-size:13.5px;margin-top:16px">정답은 없습니다. 그냥 고르세요.</p>
+    <div id="balTail"></div>`;
   $('#balOpts').querySelectorAll('button').forEach(btn=>{
     btn.onclick=()=>{
       S.balance[n]=btn.dataset.v;
       push();
-      showBalanceResult(n);
+      if(!together()) return showBalanceResult(n);
+      // 다 같이 넘기기 — 고른 것만 남기고 기다립니다
+      $('#balOpts').querySelectorAll('button').forEach(x=>{
+        x.disabled=true;
+        x.classList.toggle('picked', x===btn);
+        x.classList.toggle('faded', x!==btn);
+      });
+      const tail=$('#balTail');
+      if(tail) tail.innerHTML=holdStrip('balance','골랐습니다');
+      paintHold();
     };
   });
+  if(together() && S.balance[n]!==undefined){
+    const mineBtn=$('#balOpts').querySelector(`button[data-v="${S.balance[n]}"]`);
+    $('#balOpts').querySelectorAll('button').forEach(x=>{
+      x.disabled=true;
+      x.classList.toggle('picked', x===mineBtn);
+      x.classList.toggle('faded', x!==mineBtn);
+    });
+    $('#balTail').innerHTML=holdStrip('balance','골랐습니다');
+    paintHold();
+  }
   $('#s-balance').scrollTop=0;
 }
 
@@ -1815,10 +1944,13 @@ function showBalanceResult(n){
       </div>
     </div>
     <div class="fall-msg" id="fallMsg"></div>
-    <div class="btn-row"><button class="btn" onclick="gotoPhase(S.phase)">다음</button></div>`;
+    ${together()?'<div class="hold"><div class="hold-s">선생님이 넘겨줄 때까지 기다려 주세요</div></div>'
+                :'<div class="btn-row"><button class="btn" onclick="gotoPhaseFree(S.phase)">다음</button></div>'}`;
+  go('s-balance');
   dropNames(n, mine);
 }
 
+let fallMsgTimer=null;
 /* 이름표가 좌르르 떨어져 각자 고른 쪽에 쌓입니다 */
 function dropNames(n, mine){
   const rows=Object.values(LIVE.students);
@@ -1831,14 +1963,19 @@ function dropNames(n, mine){
 
   const put=(arr,el)=>{
     const box=$(el); if(!box) return;
-    box.innerHTML='';
+    const have=new Set([...box.children].map(c=>c.dataset.n));
     arr.slice(0,14).forEach((x,i)=>{
+      if(have.has(x.name)) return;               // 이미 붙어 있으면 그대로 둡니다
       const t=document.createElement('div');
       t.className='name-tag'+(x.name===S.id?' me':'');
+      t.dataset.n=x.name;
       t.textContent=x.name.split(' ').slice(-1)[0] || x.name;
       t.style.setProperty('--rot',(Math.random()*8-4).toFixed(1)+'deg');
-      t.style.animationDelay=(0.25+i*0.09)+'s';
+      t.style.animationDelay=(0.1+box.children.length*0.07)+'s';
       box.appendChild(t);
+    });
+    [...box.children].forEach(c=>{               // 빠진 사람은 지웁니다
+      if(!arr.some(x=>x.name===c.dataset.n)) c.remove();
     });
   };
   put(A,'#tagA'); put(B,'#tagB');
@@ -1846,8 +1983,9 @@ function dropNames(n, mine){
   $('#colA').classList.toggle('win', A.length>B.length);
   $('#colB').classList.toggle('win', B.length>A.length);
 
-  const delay=(0.25+Math.max(A.length,B.length)*0.09+0.5)*1000;
-  setTimeout(()=>{
+  const delay=1400;
+  clearTimeout(fallMsgTimer);
+  fallMsgTimer=setTimeout(()=>{
     const m=$('#fallMsg'); if(!m) return;
     if(A.length===B.length) m.textContent='딱 반반으로 갈렸습니다.';
     else{
@@ -1868,6 +2006,7 @@ let spinTimer=null, spinTick=null, spinLeft=0;
 function startSpin(n){
   go('s-spin');
   renderSpin(n);
+  showSpinPop(n);
   clearTimeout(spinTimer);
   spinTimer=setTimeout(()=>{                 // 뽑힌 학생이 자리에 없을 때를 대비
     if(document.querySelector('.screen.on')?.id!=='s-spin') return;
@@ -1876,6 +2015,35 @@ function startSpin(n){
     renderSpin(n);
   },20000);
 }
+
+/* 「가장 빨리 맞힌 ○○이 돌립니다」 — 모두에게 크게 띄웁니다 */
+let spinPopFor = -1;
+function showSpinPop(n){
+  const sp = LIVE.spin || {};
+  if(!LIVE.on || sp.spun) return;
+  if(spinPopFor === n) return;               // 회차당 한 번
+  spinPopFor = n;
+  const iAmIt = sp.who === S.id;
+  const nm = sp.who ? (sp.who.split(' ').slice(-1)[0] || sp.who) : '';
+  if(!nm) return;
+  const pop=$('#pop');
+  pop.innerHTML=`
+    <div class="pop-card">
+      <div class="pop-eye">${esc(sp.why || '이번 룰렛')}</div>
+      <div class="pop-nm">${esc(nm)}</div>
+      <div class="pop-sub">님이 룰렛을 돌립니다</div>
+      ${iAmIt
+        ? '<button class="spin-btn" id="popGo">내가 돌리기</button>'
+        : '<div class="pop-wait">다 같이 봅시다<span class="dots"></span></div>'}
+    </div>`;
+  pop.classList.add('on');
+  if(iAmIt){
+    $('#popGo').onclick=()=>{ closeSpinPop(); const g=$('#spinGo'); if(g){ g.disabled=true; } requestSpin(n); };
+  }else{
+    setTimeout(closeSpinPop, 3200);
+  }
+}
+function closeSpinPop(){ const p=$('#pop'); if(p){ p.classList.remove('on'); p.innerHTML=''; } }
 
 function renderSpin(n){
   const sp = LIVE.spin || {};
@@ -1983,7 +2151,7 @@ function requestSpin(n){
 }
 
 function runReel(n){
-  if(reelRunning) return;
+  if(reelRunning || S.seenSpin[n]) return;      // 한 회차에 한 번만 돕니다
   reelRunning=true;
   clearInterval(spinTick);
   const reel=$('#reel'); if(!reel){ reelRunning=false; return; }
@@ -2007,13 +2175,22 @@ function runReel(n){
     S.seenSpin[n]=true;
     S.cheer=null;
     push();
-    gotoPhase(n);
+    if(!together()) return gotoPhaseFree(n);
+    // 돌린 사람이 반 전체를 다음 단계로 넘깁니다
+    const sp=LIVE.spin||{};
+    const iAmIt = sp.who===S.id || !sp.who;
+    if(iAmIt && window.__fb){
+      const {db,doc,setDoc}=window.__fb;
+      setDoc(doc(db,'live','state'),{step:3},{merge:true}).catch(()=>{});
+    }
+    if(LIVE.step>=3) renderRoundStep();
   },3400);
 }
 
 /* 서버에서 룰렛 상태가 바뀌면 */
 function onSpinUpdate(){
   if(document.querySelector('.screen.on')?.id!=='s-spin') return;
+  if(S.seenSpin[S.phase]) return;               // 이미 본 룰렛은 다시 안 돕니다
   const sp=LIVE.spin||{};
   if(sp.round===S.phase && sp.spun){ runReel(S.phase); return; }
   renderSpin(S.phase);
@@ -2182,7 +2359,8 @@ function renderQuestion(r){
   $('#roundBody').innerHTML=`
     <div class="q" style="margin-top:34px">${r.q}</div>
     <p class="dim" style="text-align:center;font-size:13.5px;margin-bottom:16px">한 번만 고를 수 있습니다.</p>
-    <div class="courts" id="courts"></div>`;
+    <div class="courts" id="courts"></div>
+    <div id="qTail"></div>`;
   const c=$('#courts');
   r.options.forEach(name=>{
     const btn=document.createElement('button');
@@ -2191,6 +2369,17 @@ function renderQuestion(r){
     btn.onclick=()=>{ c.querySelectorAll('.court').forEach(x=>x.disabled=true); choose(r,name); };
     c.appendChild(btn);
   });
+  const mine=S.ans[r.id];
+  if(together() && mine){
+    c.querySelectorAll('.court').forEach(b=>{
+      b.disabled=true;
+      const isMine=b.querySelector('.nm').textContent===mine.choice;
+      b.classList.toggle('picked', isMine);
+      b.classList.toggle('faded', !isMine);
+    });
+    $('#qTail').innerHTML=holdStrip('ans','냈습니다');
+    paintHold();
+  }
   $('#s-round').scrollTop=0;
 }
 
@@ -2201,7 +2390,51 @@ function choose(r,pick){
   if(!ok && !S.wrong.includes(r.id)) S.wrong.push(r.id);
   setGauge(ok?-15:+10);
   push();
-  ok ? showCorrect(r,pick) : showWrong(r,pick);
+  if(!together()) return ok ? showCorrect(r,pick) : showWrong(r,pick);
+  // 다 같이 넘기기 — 판결은 선생님이 공개합니다
+  const box=$('#courts');
+  if(box) box.querySelectorAll('.court').forEach(b=>{
+    const isMine=b.querySelector('.nm').textContent===pick;
+    b.classList.toggle('picked', isMine);
+    b.classList.toggle('faded', !isMine);
+  });
+  const tail=$('#qTail');
+  if(tail) tail.innerHTML=holdStrip('ans','냈습니다');
+  paintHold();
+}
+
+/* 선생님이 「판결 공개」를 누르면 */
+function showVerdict(r){
+  const a=S.ans[r.id];
+  openRoundScreen(r);
+  if(!a){                                   // 못 낸 학생
+    setArt(null);
+    $('#roundBody').innerHTML=`
+      <div class="verdict"><div class="stamp">미제출</div></div>
+      <p class="dim" style="text-align:center;margin-bottom:12px">이번엔 답을 못 냈습니다</p>
+      <p style="text-align:center;font-size:17px">정답은 <b>${r.answer}</b>입니다.</p>
+      ${renderMiniDist(r)}`;
+    $('#s-round').scrollTop=0;
+    return;
+  }
+  a.ok ? showCorrect(r,a.choice) : showWrong(r,a.choice);
+}
+
+/* 우리 반이 어디로 갔는지 */
+function renderMiniDist(r){
+  const rows=Object.values(LIVE.students);
+  if(!rows.length) return '';
+  const cnt={}; r.options.forEach(o=>cnt[o]=0);
+  let tot=0;
+  rows.forEach(v=>{ const a=(v.ans||{})[r.id]; if(a && a.choice in cnt){ cnt[a.choice]++; tot++; } });
+  if(!tot) return '';
+  return `<div class="hof" style="margin-top:20px"><div class="hof-h">우리 반은 어디로 갔나</div>` +
+    r.options.map(o=>{
+      const pct=(cnt[o]/tot*100).toFixed(0);
+      const ok=o===r.answer;
+      return `<div class="pbar"><div class="pl"><span style="${ok?'color:var(--jade)':''}">${o}</span><b>${cnt[o]}명</b></div>
+        <div class="pt"><div class="pf" style="width:${pct}%;${ok?'background:var(--jade)':''}"></div></div></div>`;
+    }).join('') + `</div>`;
 }
 
 function showWrong(r,pick){
@@ -2219,7 +2452,8 @@ function showWrong(r,pick){
       <div class="shock-art"><img src="${IMG.shock}" alt=""></div>
       <div class="ending">${lines.map(([w,t])=>`<div class="l"><span class="sp">${w}</span> &nbsp;${esc(t)}</div>`).join('')}</div>
       <p style="text-align:center;margin-top:22px;font-size:17px">진짜 답은 <b>${r.answer}</b>이었습니다.</p>
-      <div class="btn-row"><button class="btn" onclick='renderWhy(ROUNDS[${S.round}])'>왜 그럴까?</button></div>`;
+      ${together()?renderMiniDist(r)+'<div class="hold"><div class="hold-s">선생님이 넘겨줄 때까지 기다려 주세요</div></div>'
+                  :`<div class="btn-row"><button class="btn" onclick='renderWhy(ROUNDS[${S.round}])'>왜 그럴까?</button></div>`}`;
     $('#s-round').scrollTop=0;
   },420);
 }
@@ -2229,12 +2463,15 @@ function showCorrect(r,pick){
   $('#roundBody').innerHTML=`
     <div class="verdict"><div class="stamp ok">인용</div></div>
     <p style="text-align:center;font-size:18px"><b>${r.answer}</b>, 맞았습니다.</p>
-    <div class="btn-row"><button class="btn" onclick='renderWhy(ROUNDS[${S.round}])'>왜 그럴까?</button></div>`;
+    ${together()?renderMiniDist(r)+'<div class="hold"><div class="hold-s">선생님이 넘겨줄 때까지 기다려 주세요</div></div>'
+                :`<div class="btn-row"><button class="btn" onclick='renderWhy(ROUNDS[${S.round}])'>왜 그럴까?</button></div>`}`;
   $('#s-round').scrollTop=0;
 }
 
 /* 이유 고르기 — 두 번째 질문 */
 function renderWhy(r){
+  if(together() && S.ans[r.id] && S.ans[r.id].whyOk!==undefined) return renderExplain(r);
+  openRoundScreen(r);
   const w=r.why;
   const order=w.opts.map((o,i)=>i).sort(()=>Math.random()-0.5);
   $('#roundBody').innerHTML=`
@@ -2260,6 +2497,7 @@ function renderWhy(r){
       row.className='btn-row';
       row.innerHTML=`<button class="btn" onclick='renderExplain(ROUNDS[${S.round}])'>해설 보기</button>`;
       $('#roundBody').appendChild(row);
+      if(together()) setTimeout(()=>renderExplain(ROUNDS[S.round]), 1100);
     };
     box.appendChild(b);
   });
@@ -2267,6 +2505,7 @@ function renderWhy(r){
 }
 
 function renderExplain(r){
+  openRoundScreen(r);
   const e=r.explain;
   let html=`<p class="eyebrow" style="margin-top:18px">해설</p><h2>${e.lead}</h2>`;
   if(e.table) html+=`<table class="tbl"><tbody>${e.table.map(row=>`<tr>${row.filter(c=>c!=='').map((c,i)=>`<${i===0?'th':'td'}>${c}</${i===0?'th':'td'}>`).join('')}</tr>`).join('')}</tbody></table>`;
@@ -2274,7 +2513,10 @@ function renderExplain(r){
   if(e.body) html+=`<p>${e.body}</p>`;
   if(e.tail) html+=`<p class="dim">${e.tail}</p>`;
   if(e.real) html+=`<div class="real"><span class="tag">실화냐?</span><br>${e.real}</div>`;
-  html+=`<div class="btn-row"><button class="btn" onclick="finishRound()">다 봤어요</button></div>`;
+  html += together()
+    ? `<div class="hold"><div class="hold-s">선생님이 다음 사건을 열어줄 때까지 기다려 주세요</div></div>`
+    : `<div class="btn-row"><button class="btn" onclick="finishRound()">다 봤어요</button></div>`;
+  if(together()){ S.done[S.round]=true; push(); }
   $('#roundBody').innerHTML=html;
   $('#s-round').scrollTop=0;
 }
@@ -2777,7 +3019,10 @@ function afterPrologue(){
    진도를 제어할 수 있습니다. 비워두면 혼자 연습하는 모드로 돕니다.
    ═══════════════════════════════════════════ */
 
-const LIVE = { on:false, students:{}, phase:-1, clearedAt:0, wipedAt:0 };
+const LIVE = { on:false, students:{}, phase:-1, clearedAt:0, wipedAt:0,
+               step:0, mode:'together', retry:null, retryDone:0 };
+/* 선생님이 다 같이 넘기는 모드인가 */
+const together = ()=> LIVE.on && LIVE.mode!=='free';
 
 window.addEventListener('fb-ready', ()=>{
   const {db,doc,setDoc,onSnapshot,collection} = window.__fb;
@@ -2792,12 +3037,38 @@ window.addEventListener('fb-ready', ()=>{
     applyLock(d.lock);
     LIVE.spin = d.spin || null;
     onSpinUpdate();
-    const n = d.round ?? -1;
+    const n  = d.round ?? -1;
+    const st = d.step ?? 0;
+    LIVE.mode = d.mode || 'together';
+    LIVE.retry = d.retry || null;
     const moved = (n !== LIVE.phase);
-    LIVE.phase = n;
+    const stepped = (st !== LIVE.step);
+    LIVE.phase = n; LIVE.step = st;
     if(!S.id) return;                    // 아직 이름 안 넣음
-    if(moved || wiped || n !== S.phase) jumpTo(n);
+    if(applyRetry()) return;             // 선생님이 「다시 받기」를 눌렀다
+    if(moved || wiped || n !== S.phase){ jumpTo(n); return; }
+    if(together() && stepped) renderRoundStep();
   });
+
+/* 선생님이 이 회차를 다시 받겠다고 하면, 낸 답을 지우고 문제로 돌아갑니다 */
+function applyRetry(){
+  const rt = LIVE.retry;
+  if(!rt || !rt.at || LIVE.retryDone === rt.at) return false;
+  LIVE.retryDone = rt.at;
+  const r = ROUNDS[rt.round];
+  if(!r) return false;
+  const mine = S.ans[r.id];
+  if(mine){
+    if(mine.ok) setGauge(+15); else setGauge(-10);
+    if(mine.whyOk !== undefined) setGauge(mine.whyOk ? +5 : -3);
+    delete S.ans[r.id];
+    S.wrong = S.wrong.filter(x=>x!==r.id);
+    delete S.done[rt.round];
+    push();
+  }
+  if(S.phase === rt.round){ renderRoundStep(); return true; }
+  return false;
+}
 
   // 반 전체 현황
   onSnapshot(collection(db,'students'),snap=>{
@@ -2806,6 +3077,7 @@ window.addEventListener('fb-ready', ()=>{
     renderDist();
     if(document.querySelector('.screen.on')?.id==='s-spin') paintSpinLive();
     if($('#life8Dist')) renderLife8();
+    paintHold();
     if(document.querySelector('.screen.on')?.id==='s-balance' && $('#tagA'))
       dropNames(S.phase, S.balance[S.phase]);
     const lc=$('#lobbyCount');

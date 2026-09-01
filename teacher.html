@@ -99,6 +99,33 @@ td.num{font-variant-numeric:tabular-nums;color:var(--mist)}
   font-size:13px;color:var(--gold);
 }
 .empty{color:var(--mist-dim);font-size:14px;padding:14px 0}
+.stepbar{
+  display:flex;align-items:stretch;gap:10px;margin:14px 0 12px;
+}
+.stepbar .stepnow{
+  flex:1;background:var(--ink-2);border:1px solid var(--ink-3);border-radius:4px;
+  padding:10px 14px;display:flex;flex-direction:column;justify-content:center;
+}
+.stepbar .lbl{font-size:17px;font-weight:700;color:var(--paper)}
+.stepbar .nxt{font-size:12.5px;color:var(--mist-dim);margin-top:3px}
+.stepbar button{
+  border-radius:4px;padding:0 20px;cursor:pointer;font-weight:700;font-size:15px;
+  background:var(--ink-2);border:1px solid var(--ink-3);color:var(--paper);
+}
+.stepbar button.go{
+  background:var(--gold);color:#12171a;border-color:var(--gold);
+  font-size:17px;padding:0 30px;
+}
+.stepbar button.go:hover{filter:brightness(1.08)}
+.stepbar button:disabled{opacity:.4;cursor:default}
+.modebar{display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap}
+.modebar .lb{font-size:11px;letter-spacing:.16em;color:var(--mist-dim);margin-right:4px}
+.modebar button{
+  background:var(--ink-2);border:1px solid var(--ink-3);border-radius:3px;
+  padding:7px 14px;cursor:pointer;color:var(--mist);font-size:13px;
+}
+.modebar button.on{background:var(--gold);color:#12171a;border-color:var(--gold);font-weight:700}
+.modebar .mdhint{font-size:12px;color:var(--mist-dim)}
 .card h2 .hint{letter-spacing:0;font-size:11px;color:var(--ink-3);margin-left:8px}
 .card h2 .hint{color:#5a6a6f}
 
@@ -237,9 +264,26 @@ body.locked .wrap{display:none}
     <div class="now" id="nowLabel">아직 시작 전</div>
     <div class="nowsub" id="nowSub">아래 버튼을 누르면 학생들 화면이 동시에 넘어갑니다.</div>
     <div class="steps" id="steps"></div>
+    <div class="stepbar" id="stepbar">
+      <button class="sub" id="btnStepPrev">◀ 이전</button>
+      <div class="stepnow">
+        <span class="lbl" id="stepLabel">—</span>
+        <span class="nxt" id="stepNext"></span>
+      </div>
+      <button class="go" id="btnStepNext">다음 ▶</button>
+    </div>
+
+    <div class="modebar">
+      <span class="lb">진행 방식</span>
+      <button id="mdTogether">다 같이 넘기기</button>
+      <button id="mdFree">각자 풀기</button>
+      <span class="mdhint" id="mdHint"></span>
+    </div>
+
     <div class="mainbtns">
       <button id="btnNext">다음 사건 열기</button>
       <button class="sub" id="btnPrev">한 단계 뒤로</button>
+      <button class="danger" id="btnRetry">이 회차 다시 받기</button>
       <button class="danger" id="btnReset">처음으로 되돌리기</button>
       <button class="danger" id="btnClear">학생 기록 전체 지우기</button>
       <button class="sub" id="btnCSV">엑셀로 내려받기</button>
@@ -381,7 +425,7 @@ const OPTIONS = {
 };
 
 const $ = s => document.querySelector(s);
-let DB=null, api=null, phase=-1, students={}, lock={on:false,mode:'look'}, lastSpin={};
+let DB=null, api=null, phase=-1, step=0, mode='together', students={}, lock={on:false,mode:'look'}, lastSpin={};
 
 if(!FIREBASE_CONFIG.apiKey){
   // 설정 전에도 화면이 어떻게 보이는지 알 수 있게 예시 자료를 띄웁니다.
@@ -389,7 +433,7 @@ if(!FIREBASE_CONFIG.apiKey){
   $('#conn').textContent='예시 화면 (실제 연결 안 됨)';
   $('#conn').className='conn no';
   // 발표 화면은 설정 전에도 미리 볼 수 있게 열어둡니다
-  ['btnNext','btnPrev','btnReset','btnClear','btnSpinAll'].forEach(id=>document.getElementById(id).disabled=true);
+  ['btnNext','btnPrev','btnReset','btnClear','btnSpinAll','btnStepNext','btnStepPrev','btnRetry','mdTogether','mdFree'].forEach(id=>document.getElementById(id).disabled=true);
   document.querySelectorAll('.lockbar button').forEach(b=>b.disabled=true);
   const demo=[['20101 김서준','지방법원',1],['20102 이하윤','가정법원',0],
               ['20103 박도윤','지방법원',1],['20104 최지우','지방법원',1],
@@ -416,6 +460,8 @@ if(!FIREBASE_CONFIG.apiKey){
   m.onSnapshot(m.doc(DB,'live','state'), snap=>{
     const d = snap.exists() ? snap.data() : {};
     phase = d.round ?? -1;
+    step  = d.step  ?? 0;
+    mode  = d.mode  || 'together';
     lock  = d.lock  || {on:false,mode:'look'};
     lastSpin = d.spin || {};
     paint();
@@ -443,7 +489,41 @@ if(!FIREBASE_CONFIG.apiKey){
 async function setPhase(n){
   if(!DB) return;
   await api.setDoc(api.doc(DB,'live','state'),
-    {round:n, ts:Date.now(), spin:pickSpinner(n), lock:{on:false,mode:'look'}},{merge:true});
+    {round:n, step:0, ts:Date.now(), spin:pickSpinner(n), lock:{on:false,mode:'look'}},{merge:true});
+}
+
+/* ── 회차 안의 단계 ────────────────────────── */
+const STEP_LABELS = ['밸런스게임 고르기','밸런스 결과 공개','환생 룰렛',
+                     '사연 읽기','법원 고르기','판결 공개','이유 고르기 · 해설'];
+const LAST_STEP = STEP_LABELS.length - 1;
+
+async function setStep(k){
+  if(!DB) return;
+  await api.setDoc(api.doc(DB,'live','state'),{step:k, ts:Date.now()},{merge:true});
+}
+async function setMode(m){
+  if(!DB) return;
+  await api.setDoc(api.doc(DB,'live','state'),{mode:m},{merge:true});
+}
+async function stepNext(){
+  if(phase < 0)             return setPhase(0);
+  if(phase >= 5)            return setPhase(Math.min(7, phase+1));
+  if(mode === 'free')       return setPhase(Math.min(7, phase+1));
+  if(step < LAST_STEP)      return setStep(step+1);
+  return setPhase(phase+1);
+}
+async function stepPrev(){
+  if(mode === 'free' || phase < 0 || phase >= 5) return setPhase(Math.max(-1, phase-1));
+  if(step > 0) return setStep(step-1);
+  return setPhase(phase-1);
+}
+/* 이 회차 답을 다시 받습니다 (기록이 갱신됩니다) */
+async function retryRound(){
+  if(!DB) return;
+  if(phase<0 || phase>4){ alert('1~5회차에서만 쓸 수 있습니다.'); return; }
+  if(!confirm(`${phase+1}회차 답을 다시 받습니다. 학생들이 낸 답이 지워지고 문제로 돌아갑니다. 계속할까요?`)) return;
+  await api.setDoc(api.doc(DB,'live','state'),
+    {retry:{round:phase, at:Date.now()}, step:4, ts:Date.now()},{merge:true});
 }
 
 /* ── 룰렛 담당 뽑기 ──────────────────────────
@@ -496,6 +576,11 @@ $('#btnPresentX').onclick=()=>present.classList.remove('on');
 $('#btnSpinAll').onclick = openSpinToAll;
 document.addEventListener('keydown',e=>{ if(e.key==='Escape') present.classList.remove('on'); });
 
+$('#btnStepNext').onclick = stepNext;
+$('#btnStepPrev').onclick = stepPrev;
+$('#btnRetry').onclick    = retryRound;
+$('#mdTogether').onclick  = ()=>setMode('together');
+$('#mdFree').onclick      = ()=>setMode('free');
 $('#btnNext').onclick = ()=>setPhase(Math.min(7, phase+1));
 $('#btnPrev').onclick = ()=>setPhase(Math.max(-1, phase-1));
 $('#btnReset').onclick= ()=>{ if(confirm('학생 화면을 모두 대기실로 되돌립니다.')) setPhase(-1); };
@@ -569,6 +654,21 @@ function paint(){
   $('#lkLook').classList.toggle('on', lm==='look');
   $('#lkDist').classList.toggle('on', lm==='dist');
   $('#lkTalk').classList.toggle('on', lm==='talk');
+
+  $('#mdTogether').classList.toggle('on', mode!=='free');
+  $('#mdFree').classList.toggle('on', mode==='free');
+  $('#mdHint').textContent = mode==='free'
+    ? '학생이 각자 속도로 풉니다. 회차만 선생님이 엽니다.'
+    : '학생 화면이 선생님이 넘길 때만 넘어갑니다.';
+
+  const inRound = (mode!=='free' && phase>=0 && phase<=4);
+  $('#stepbar').style.display = 'flex';
+  $('#stepLabel').textContent = phase<0 ? '대기실'
+    : inRound ? `${phase+1}회차 · ${STEP_LABELS[step]||''}`
+    : (PHASES.find(p=>p.i===phase)||{}).label || '';
+  $('#stepNext').textContent = phase<0 ? '다음 ▶ 을 누르면 1회차가 열립니다'
+    : inRound ? (step<LAST_STEP ? `다음 ▶ ${STEP_LABELS[step+1]}` : `다음 ▶ ${phase+2}회차로`)
+    : '다음 ▶ 다음 단계로';
 
   const cur = PHASES.find(p=>p.i===phase) || PHASES[0];
   $('#nowLabel').textContent = '지금 열려 있는 것 — ' + cur.label;
