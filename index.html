@@ -1540,7 +1540,7 @@ const SPEED_OPTS = ['지방법원','가정법원','행정법원','회생법원',
    ═══════════════════════════════════════════ */
 const S = { id:'', key:'', gauge:100, round:0, phase:-1, wrong:[],
             ans:{}, bonus:{}, done:{}, balance:{}, seenSpin:{},
-            speedIdx:0, speedRes:[], speedMs:[], cheer:null, life8:'' };
+            speedIdx:0, speedRes:[], speedMs:[], cheer:null, life8:'', savedAt:0 };
 const $ = s => document.querySelector(s);
 
 /* 그림은 이 파일 안에 통째로 들어 있습니다 (별도 폴더 없음) */
@@ -2777,7 +2777,7 @@ function afterPrologue(){
    진도를 제어할 수 있습니다. 비워두면 혼자 연습하는 모드로 돕니다.
    ═══════════════════════════════════════════ */
 
-const LIVE = { on:false, students:{}, phase:-1 };
+const LIVE = { on:false, students:{}, phase:-1, clearedAt:0 };
 
 window.addEventListener('fb-ready', ()=>{
   const {db,doc,setDoc,onSnapshot,collection} = window.__fb;
@@ -2787,6 +2787,8 @@ window.addEventListener('fb-ready', ()=>{
   // 선생님이 여는 단계와 화면 잠금을 따라간다
   onSnapshot(doc(db,'live','state'),snap=>{
     const d = snap.exists() ? snap.data() : {};
+    LIVE.clearedAt = d.clearedAt || 0;
+    if(wipeIfCleared()) return;          // 선생님이 기록을 지웠으면 나도 처음부터
     applyLock(d.lock);
     LIVE.spin = d.spin || null;
     onSpinUpdate();
@@ -2861,8 +2863,29 @@ function applyState(d){
   S.spinsDone= d.spins || 0;
   S.gauge = (typeof d.gauge==='number') ? d.gauge : 100;
   S.phase = (typeof d.phase==='number') ? d.phase : -1;
+  S.savedAt = d.ts || 0;
   S.wrong = Object.keys(S.ans).filter(k=>!S.ans[k].ok).map(Number);
   return Object.keys(S.ans).length>0 || S.phase>=0;
+}
+
+/* 선생님이 「학생 기록 전체 지우기」를 누른 시각보다 오래된 기록은 버립니다.
+   앞 반 기록이 남아서 "1회차 이미 끝남"으로 뜨는 걸 막습니다. */
+function wipeIfCleared(){
+  const cut = LIVE.clearedAt || 0;
+  if(!cut) return false;
+  const mine = S.savedAt || 0;
+  if(mine >= cut) return false;
+  try{ localStorage.removeItem('eogul_state'); }catch(e){}
+  S.ans={}; S.bonus={}; S.done={}; S.balance={}; S.seenSpin={};
+  S.speedRes=[]; S.speedMs=[]; S.cheer=null; S.life8='';
+  S.wrong=[]; S.spinsDone=0; S.gauge=100; S.savedAt=0;
+  LIVE.pulled=true;                      // 서버의 옛 기록도 덮어쓰지 않게
+  if(S.id){
+    S.phase = LIVE.phase;
+    setGaugeNow();
+    gotoPhase(LIVE.phase);
+  }
+  return true;
 }
 
 function restoreLocal(){
@@ -2871,6 +2894,10 @@ function restoreLocal(){
     if(!raw) return false;
     const d=JSON.parse(raw);
     if(d.name!==S.id) return false;      // 다른 사람 기록이면 무시
+    if(LIVE.clearedAt && (d.ts||0) < LIVE.clearedAt){   // 선생님이 지운 뒤의 옛 기록
+      try{ localStorage.removeItem('eogul_state'); }catch(e){}
+      return false;
+    }
     return applyState(d);
   }catch(e){ return false; }
 }
@@ -2883,6 +2910,7 @@ function pullRemote(){
     if(LIVE.pulled) return;              // 최초 1회만 덮어씀
     LIVE.pulled=true;
     const d=snap.data();
+    if(LIVE.clearedAt && (d.ts||0) < LIVE.clearedAt) return;   // 지운 뒤의 옛 기록
     if((Object.keys(d.ans||{}).length) > (Object.keys(S.ans).length)){
       applyState(d);
       setGaugeNow();

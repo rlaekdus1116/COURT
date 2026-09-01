@@ -99,6 +99,29 @@ td.num{font-variant-numeric:tabular-nums;color:var(--mist)}
   font-size:13px;color:var(--gold);
 }
 .empty{color:var(--mist-dim);font-size:14px;padding:14px 0}
+.card h2 .hint{letter-spacing:0;font-size:11px;color:var(--ink-3);margin-left:8px}
+.card h2 .hint{color:#5a6a6f}
+
+/* ── 명예의 전당 ── */
+ol.hof{list-style:none;margin:0;padding:0}
+ol.hof li{
+  display:grid;grid-template-columns:30px 1fr auto auto;
+  align-items:center;gap:10px;padding:9px 4px;
+  border-bottom:1px solid rgba(255,255,255,.05);
+}
+ol.hof li:last-child{border-bottom:0}
+ol.hof li .rk{font-weight:700;text-align:center;color:var(--mist-dim)}
+ol.hof li.r1 .rk,ol.hof li.r2 .rk,ol.hof li.r3 .rk{color:var(--gold)}
+ol.hof li .nm{color:var(--paper)}
+ol.hof li .sc{color:var(--jade);font-variant-numeric:tabular-nums;font-size:13px}
+ol.hof li .tm{color:var(--mist-dim);font-variant-numeric:tabular-nums;font-size:13px;min-width:52px;text-align:right}
+#present ol.hof li{
+  grid-template-columns:1.6em 1fr auto auto;
+  gap:.6em;padding:1.4vh .2em;font-size:clamp(20px,3.4vh,40px);
+  border-bottom:1px solid rgba(255,255,255,.08);
+}
+#present ol.hof li .sc,#present ol.hof li .tm{font-size:.62em}
+#present ol.hof li .tm{min-width:3.4em}
 
 /* 화면 잠금 */
 .lockbar{
@@ -122,22 +145,25 @@ td.num{font-variant-numeric:tabular-nums;color:var(--mist)}
   flex-direction:column;
 }
 #present.on{display:flex}
-#present .pt{font-size:14px;letter-spacing:.3em;color:var(--mist-dim);margin-bottom:10px}
+#present .pt{
+  font-size:clamp(13px,1.5vw,18px);letter-spacing:.3em;color:var(--mist-dim);margin-bottom:6px;
+}
 #present h2{
   font-family:var(--f-display);font-weight:700;
-  font-size:clamp(30px,5.5vw,64px);line-height:1.2;margin-bottom:6px;text-wrap:balance;
+  font-size:clamp(34px,6.5vw,80px);line-height:1.1;margin-bottom:4px;text-wrap:balance;
 }
 #present .ans{
-  font-family:var(--f-display);font-size:clamp(20px,2.6vw,32px);
-  color:var(--gold);margin-bottom:4vh;
+  font-family:var(--f-display);font-size:clamp(19px,2.4vw,30px);
+  color:var(--gold);margin-bottom:2.5vh;
 }
-#present .pbars{flex:1 1 auto;display:flex;flex-direction:column;justify-content:center;gap:2.2vh}
+#present .pbars{flex:1 1 auto;display:flex;flex-direction:column;justify-content:center;gap:2.6vh}
 #present .pb .pl{
   display:flex;justify-content:space-between;align-items:baseline;
-  font-size:clamp(18px,2.4vw,30px);margin-bottom:8px;
+  font-family:var(--f-display);font-weight:700;
+  font-size:clamp(24px,3.6vw,46px);margin-bottom:10px;
 }
-#present .pb .pl b{font-variant-numeric:tabular-nums;color:var(--paper)}
-#present .pb .pt2{height:clamp(14px,2vh,26px);background:var(--ink-3);border-radius:99px;overflow:hidden}
+#present .pb .pl b{font-variant-numeric:tabular-nums;color:var(--paper);font-size:1.05em}
+#present .pb .pt2{height:clamp(20px,3.4vh,44px);background:var(--ink-3);border-radius:99px;overflow:hidden}
 #present .pb .pf{height:100%;border-radius:99px;background:var(--mist-dim);transition:width .7s cubic-bezier(.4,0,.2,1)}
 #present .pb.ok .pf{background:var(--jade)}
 #present .pb.no .pf{background:var(--seal)}
@@ -216,7 +242,9 @@ body.locked .wrap{display:none}
       <button class="sub" id="btnPrev">한 단계 뒤로</button>
       <button class="danger" id="btnReset">처음으로 되돌리기</button>
       <button class="danger" id="btnClear">학생 기록 전체 지우기</button>
+      <button class="sub" id="btnCSV">엑셀로 내려받기</button>
       <button class="sub" id="btnPresent">발표 화면 (스크린용)</button>
+      <button class="sub" id="btnSpinAll">룰렛 아무나 열기</button>
     </div>
 
     <div class="lockbar">
@@ -257,6 +285,11 @@ body.locked .wrap{display:none}
       <h2>회차별 정답률</h2>
       <div id="rateAll"><div class="empty">아직 응답이 없습니다.</div></div>
     </div>
+  </div>
+
+  <div class="card">
+    <h2>명예의 전당 <span class="hint">스피드 라운드를 끝낸 학생</span></h2>
+    <div id="hofBoard"><div class="empty">아직 끝낸 학생이 없습니다.</div></div>
   </div>
 
   <!-- 학생 목록 -->
@@ -331,7 +364,7 @@ const PHASES = [
   {i:-1, label:'대기실',        short:'대기'},
   {i:0,  label:'1회차 · 중고거래', short:'1회차'},
   {i:1,  label:'2회차 · 급식',    short:'2회차'},
-  {i:2,  label:'3회차 · 이혼',    short:'3회차'},
+  {i:2,  label:'3회차 · 개명',    short:'3회차'},
   {i:3,  label:'4회차 · 파산',    short:'4회차'},
   {i:4,  label:'5회차 · 상표',    short:'5회차'},
   {i:5,  label:'6회차 · 3심제',   short:'6회차'},
@@ -342,13 +375,13 @@ const ANSWERS = {1:'지방법원',2:'행정법원',3:'가정법원',4:'회생법
 const OPTIONS = {
   1:['지방법원','가정법원','회생법원','헌법재판소'],
   2:['지방법원','행정법원','가정법원','헌법재판소'],
-  3:['지방법원','가정법원','행정법원','회생법원'],
+  3:['주민센터','가정법원','지방법원','행정법원'],
   4:['지방법원','행정법원','회생법원','가정법원'],
   5:['지방법원','행정법원','특허법원','가정법원']
 };
 
 const $ = s => document.querySelector(s);
-let DB=null, api=null, phase=-1, students={}, lock={on:false,mode:'look'};
+let DB=null, api=null, phase=-1, students={}, lock={on:false,mode:'look'}, lastSpin={};
 
 if(!FIREBASE_CONFIG.apiKey){
   // 설정 전에도 화면이 어떻게 보이는지 알 수 있게 예시 자료를 띄웁니다.
@@ -356,14 +389,17 @@ if(!FIREBASE_CONFIG.apiKey){
   $('#conn').textContent='예시 화면 (실제 연결 안 됨)';
   $('#conn').className='conn no';
   // 발표 화면은 설정 전에도 미리 볼 수 있게 열어둡니다
-  ['btnNext','btnPrev','btnReset','btnClear'].forEach(id=>document.getElementById(id).disabled=true);
+  ['btnNext','btnPrev','btnReset','btnClear','btnSpinAll'].forEach(id=>document.getElementById(id).disabled=true);
   document.querySelectorAll('.lockbar button').forEach(b=>b.disabled=true);
   const demo=[['20101 김서준','지방법원',1],['20102 이하윤','가정법원',0],
               ['20103 박도윤','지방법원',1],['20104 최지우','지방법원',1],
               ['20105 정시우','헌법재판소',0],['20106 강예은','지방법원',1],
               ['20107 윤하람','회생법원',0]];
   demo.forEach(([n,c,ok],i)=>{
-    students[n]={name:n,phase:0,gauge:80+i*3,speed:[true,true,false,true,true,false],
+    const sp=Array.from({length:12},(_,k)=>Math.random()<.72);
+    students[n]={name:n,phase:0,gauge:80+i*3,speed:sp,
+      speedMs:sp.map(()=>2000+Math.floor(Math.random()*9000)),
+      life8:['student','judge','lawyer','boss'][i%4],
       ans:{1:{choice:c,ok:!!ok,whyOk:!!ok},
            2:{choice:i<5?'행정법원':'지방법원',ok:i<5}},
       done:{1:i<6}};
@@ -381,6 +417,7 @@ if(!FIREBASE_CONFIG.apiKey){
     const d = snap.exists() ? snap.data() : {};
     phase = d.round ?? -1;
     lock  = d.lock  || {on:false,mode:'look'};
+    lastSpin = d.spin || {};
     paint();
   });
   m.onSnapshot(m.collection(DB,'students'), snap=>{
@@ -388,6 +425,8 @@ if(!FIREBASE_CONFIG.apiKey){
     snap.forEach(d=>students[d.id]=d.data());
     paint();
   });
+  setTimeout(sweepOld, 3000);              // 들어올 때 한 번
+  setInterval(sweepOld, 10*60*1000);       // 그 뒤 10분마다
 }catch(e){
   // 학교 인터넷이 서버를 막았을 때
   $('#conn').textContent='연결 안 됨 — 인터넷을 확인하세요';
@@ -396,14 +435,48 @@ if(!FIREBASE_CONFIG.apiKey){
   $('#setup').innerHTML='<b>서버에 연결하지 못했습니다.</b><br>'+
     '학교 인터넷이 막고 있거나 잠시 끊긴 상태입니다. '+
     '진도 제어와 실시간 자료는 쓸 수 없지만, <b>발표 화면</b>과 수업 자체는 그대로 진행하실 수 있습니다.';
-  ['btnNext','btnPrev','btnReset','btnClear'].forEach(id=>document.getElementById(id).disabled=true);
+  ['btnNext','btnPrev','btnReset','btnClear','btnSpinAll'].forEach(id=>document.getElementById(id).disabled=true);
   document.querySelectorAll('.lockbar button').forEach(b=>b.disabled=true);
   console.warn(e);
 }
 
 async function setPhase(n){
   if(!DB) return;
-  await api.setDoc(api.doc(DB,'live','state'),{round:n,ts:Date.now()},{merge:true});
+  await api.setDoc(api.doc(DB,'live','state'),
+    {round:n, ts:Date.now(), spin:pickSpinner(n), lock:{on:false,mode:'look'}},{merge:true});
+}
+
+/* ── 룰렛 담당 뽑기 ──────────────────────────
+   직전 회차를 '가장 빨리 맞힌' 학생이 다음 룰렛을 돌립니다.
+   이미 한 번 돌린 학생은 빠집니다. 1회차는 앞선 문제가 없어 무작위.
+   ───────────────────────────────────────── */
+function pickSpinner(n){
+  if(n<0 || n>5) return {round:n, who:'', spun:true, why:''};   // 룰렛 없는 단계
+  const rows=Object.values(students);
+  if(!rows.length) return {round:n, who:'', spun:false, open:true, why:''};
+
+  const notYet = s => !(s.spins>0);
+
+  if(n>0){
+    const prev = n;                       // phase n 을 열 때 직전 회차 id = n
+    const fast = rows
+      .filter(s => s.ans && s.ans[prev] && s.ans[prev].ok && s.ans[prev].at)
+      .sort((a,b) => a.ans[prev].at - b.ans[prev].at);
+    const pick = fast.find(notYet) || fast[0];
+    if(pick) return {round:n, who:pick.name||'', spun:false,
+                     why:`${prev}회차를 가장 빨리 맞힌 사람`};
+  }
+
+  let pool=rows.filter(notYet);
+  if(!pool.length) pool=rows;
+  const pick=pool[Math.floor(Math.random()*pool.length)];
+  return {round:n, who:pick.name||'', spun:false, why:'무작위로 뽑힌 사람'};
+}
+
+/* 담당이 자리에 없을 때 — 선생님이 직접 열어줍니다 */
+async function openSpinToAll(){
+  if(!DB) return;
+  await api.setDoc(api.doc(DB,'live','state'),{spin:Object.assign({},lastSpin,{open:true})},{merge:true});
 }
 
 /* 학생 화면 잠금 — 설명하는 동안 앞서 나가지 못하게 */
@@ -420,6 +493,7 @@ $('#lkTalk').onclick = ()=>setLock(true,'talk');
 const present=$('#present');
 $('#btnPresent').onclick =()=>{ present.classList.add('on'); paintPresent(); };
 $('#btnPresentX').onclick=()=>present.classList.remove('on');
+$('#btnSpinAll').onclick = openSpinToAll;
 document.addEventListener('keydown',e=>{ if(e.key==='Escape') present.classList.remove('on'); });
 
 $('#btnNext').onclick = ()=>setPhase(Math.min(7, phase+1));
@@ -430,8 +504,63 @@ $('#btnClear').onclick= async ()=>{
   if(!confirm('학생 응답 기록을 전부 지웁니다. 다음 반 수업 전에 쓰세요. 계속할까요?')) return;
   const snap = await api.getDocs(api.collection(DB,'students'));
   await Promise.all(snap.docs.map(d=>api.deleteDoc(d.ref)));
+  students={};
+  // 학생 폰에 남아 있는 기록도 같이 무효로 만듭니다
+  await api.setDoc(api.doc(DB,'live','state'),{clearedAt:Date.now(),round:-1},{merge:true}).catch(()=>{});
   setPhase(-1);
+  paint();
+  alert('지웠습니다. 학생들이 다시 들어오면 처음부터 시작합니다.');
 };
+
+/* ── 엑셀로 내려받기 ────────────────────────
+   CSV(UTF-8 BOM) — 엑셀에서 바로 열립니다.
+   ───────────────────────────────────────── */
+const LIFE8_LABEL = {student:'다시 중학생', judge:'판사', lawyer:'변호사', boss:'떡볶이집 사장'};
+function downloadCSV(){
+  const rows=Object.values(students).sort((a,b)=>(a.name||'').localeCompare(b.name||''));
+  if(!rows.length){ alert('아직 기록이 없습니다.'); return; }
+  const head=['학번 이름','진행'];
+  for(let r=1;r<=5;r++) head.push(`${r}회차 선택`,`${r}회차 정답`,`${r}회차 이유`);
+  head.push('스피드 맞힌 수','스피드 총 시간(초)','8회차 선택','최종 한(恨)');
+  const q=v=>`"${String(v==null?'':v).replace(/"/g,'""')}"`;
+  const body=rows.map(s=>{
+    const c=[q(s.name||''), q((PHASES.find(p=>p.i===(s.phase??-1))||{}).short||'—')];
+    for(let r=1;r<=5;r++){
+      const a=(s.ans||{})[r];
+      c.push(q(a?a.choice:''), q(a?(a.ok?'O':'X'):''), q(a?(a.whyOk===undefined?'':a.whyOk?'O':'X'):''));
+    }
+    const sp=s.speed||[];
+    const ms=(s.speedMs||[]).reduce((x,y)=>x+(y||0),0);
+    c.push(q(sp.length?sp.filter(Boolean).length:''), q(ms?(ms/1000).toFixed(1):''),
+           q(LIFE8_LABEL[s.life8]||''), q(s.gauge==null?'':s.gauge));
+    return c.join(',');
+  });
+  const csv='\uFEFF'+[head.map(q).join(','),...body].join('\r\n');
+  const d=new Date(), z=n=>String(n).padStart(2,'0');
+  const name=`억울이_학생기록_${d.getFullYear()}${z(d.getMonth()+1)}${z(d.getDate())}_${z(d.getHours())}${z(d.getMinutes())}.csv`;
+  const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8;'}));
+  const a=document.createElement('a');
+  a.href=url; a.download=name; document.body.appendChild(a); a.click();
+  a.remove(); setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+$('#btnCSV').onclick = downloadCSV;
+
+/* ── 오래된 기록 자동 삭제 ──────────────────
+   수업이 끝나고 AUTO_DELETE_HOURS 가 지난 기록은 스스로 지웁니다.
+   ───────────────────────────────────────── */
+const AUTO_DELETE_HOURS = 12;
+let sweeping=false;
+async function sweepOld(){
+  if(!DB || sweeping) return;
+  sweeping=true;
+  try{
+    const cut = Date.now() - AUTO_DELETE_HOURS*3600*1000;
+    const snap = await api.getDocs(api.collection(DB,'students'));
+    const old = snap.docs.filter(d=>((d.data().ts)||0) < cut);
+    if(old.length) await Promise.all(old.map(d=>api.deleteDoc(d.ref)));
+  }catch(e){}
+  sweeping=false;
+}
 
 function paint(){
   // 잠금 버튼 상태
@@ -443,6 +572,12 @@ function paint(){
 
   const cur = PHASES.find(p=>p.i===phase) || PHASES[0];
   $('#nowLabel').textContent = '지금 열려 있는 것 — ' + cur.label;
+  const sp=lastSpin||{};
+  $('#nowSub').innerHTML = (sp.who && !sp.spun && phase>=0 && phase<=5)
+    ? `룰렛 담당 · <b style="color:var(--gold)">${escape2(sp.who)}</b>` +
+      (sp.why ? ` <span style="color:var(--mist-dim)">(${escape2(sp.why)})</span>` : '') +
+      ` — 이 학생이 돌려야 다음으로 넘어갑니다`
+    : '아래 버튼을 누르면 학생들 화면이 동시에 넘어갑니다.';
 
   // 단계 버튼
   $('#steps').innerHTML='';
@@ -519,17 +654,18 @@ function paint(){
         return `<td><span class="chip ${cls}">${a.choice.replace('법원','').replace('헌법재판소','헌재')}</span></td>`;
       }).join('');
       const sp=(s.speed||[]).filter(Boolean).length;
-      const spTxt=(s.speed||[]).length? `${sp}/6` : '·';
+      const spTxt=(s.speed||[]).length? `${sp}/12` : '·';
       const ph=PHASES.find(p=>p.i===(s.phase??-1));
       return `<tr><td>${escape2(s.name||'')}</td><td class="num">${ph?ph.short:'—'}</td>${cells}
         <td class="num">${spTxt}</td><td class="num">${s.gauge??''}</td></tr>`;
     }).join('');
 
+  paintHOF();
   if(present.classList.contains('on')) paintPresent();
 }
 
 /* ── 발표 화면 — 교실 스크린에 띄우는 큰 화면 ── */
-const TITLES = {1:'30만 원짜리 벽돌',2:'급식에서 나온 그것',3:'나는 누구랑 살아요?',
+const TITLES = {1:'30만 원짜리 벽돌',2:'급식에서 나온 그것',3:'내 이름이 싫어요',
                 4:'현관에 붙은 빨간 스티커',5:'내 채널 이름을 대기업이 가져갔다'};
 function paintPresent(){
   const rows=Object.entries(students);
@@ -537,10 +673,44 @@ function paintPresent(){
   const rid = phase>=0 && phase<5 ? phase+1 : null;
   const cur = PHASES.find(p=>p.i===phase) || PHASES[0];
 
-  $('#prTicket').textContent = cur.label;
   $('#prTotal').textContent = total;
 
+  if(phase===7){                                   // 엔딩 · 8회차
+    const LIFE8=[['student','다시 중학생'],['judge','판사'],['lawyer','변호사'],['boss','떡볶이집 사장']];
+    const picked=rows.map(([,v])=>v.life8).filter(Boolean);
+    $('#prTicket').textContent = '8회차';
+    $('#prTitle').textContent  = '우리 반은 뭐가 되기로 했을까';
+    $('#prAns').textContent    = '';
+    $('#prDone').textContent   = picked.length;
+    $('#prBars').innerHTML = picked.length
+      ? LIFE8.map(([k,label])=>{
+          const n=picked.filter(x=>x===k).length;
+          const pct=(n/picked.length*100).toFixed(0);
+          return `<div class="pb"><div class="pl"><span>${label}</span><b>${n}명</b></div>
+            <div class="pt2"><div class="pf" style="width:${pct}%"></div></div></div>`;
+        }).join('')
+      : '<div class="empty" style="text-align:center">아직 고른 학생이 없습니다.</div>';
+    $('#prNote').textContent = `${total-picked.length}명이 아직 고르는 중`;
+    return;
+  }
+
+  if(phase===6){                                   // 7회차 · 스피드 라운드
+    const hr=hofRows();
+    $('#prTicket').textContent = '7회차 · 마지막 관문';
+    $('#prTitle').textContent  = '명예의 전당';
+    $('#prAns').textContent    = '';
+    $('#prDone').textContent   = hr.length;
+    $('#prBars').innerHTML = hr.length
+      ? hofHTML(hr,8)
+      : '<div class="empty" style="text-align:center">아직 끝낸 학생이 없습니다.</div>';
+    $('#prNote').textContent = hr.length
+      ? `1위 ${hr[0].name} · ${hr[0].ok}문제 · ${(hr[0].ms/1000).toFixed(1)}초`
+      : '';
+    return;
+  }
+
   if(!rid){
+    $('#prTicket').textContent = cur.label;
     $('#prTitle').textContent = cur.label;
     $('#prAns').textContent = '';
     $('#prBars').innerHTML = '';
@@ -549,7 +719,8 @@ function paintPresent(){
     return;
   }
 
-  $('#prTitle').textContent = TITLES[rid] || cur.label;
+  $('#prTicket').textContent = `${cur.label} · ${TITLES[rid] || ''}`;
+  $('#prTitle').textContent = '우리 반은 어디로 갔을까';
   const cnt={}; OPTIONS[rid].forEach(o=>cnt[o]=0);
   let ans=0, ok=0;
   rows.forEach(([,s])=>{
@@ -572,6 +743,34 @@ function paintPresent(){
   $('#prNote').textContent = reveal
     ? `정답 ${ok}명 · 오답 ${ans-ok}명`
     : `${total-ans}명이 아직 고르는 중`;
+}
+
+/* ── 명예의 전당 ── */
+function hofRows(){
+  return Object.values(students)
+    .filter(v => Array.isArray(v.speed) && v.speed.filter(x=>x!==undefined).length>=12)
+    .map(v => ({ name:v.name||'',
+                 ok:v.speed.filter(Boolean).length,
+                 ms:(v.speedMs||[]).reduce((a,b)=>a+(b||0),0) }))
+    .sort((a,b)=> b.ok-a.ok || a.ms-b.ms);
+}
+function hofHTML(rows,limit){
+  return `<ol class="hof">` + rows.slice(0,limit).map((r,i)=>{
+    const rank=i+1;
+    const medal = rank<=3 ? ['①','②','③'][rank-1] : rank;
+    return `<li class="r${rank<=3?rank:0}">
+      <span class="rk">${medal}</span>
+      <span class="nm">${escape2(r.name)}</span>
+      <span class="sc">${r.ok}문제</span>
+      <span class="tm">${(r.ms/1000).toFixed(1)}초</span></li>`;
+  }).join('') + `</ol>`;
+}
+function paintHOF(){
+  const el=$('#hofBoard'); if(!el) return;
+  const rows=hofRows();
+  el.innerHTML = rows.length
+    ? hofHTML(rows,10)
+    : '<div class="empty">아직 끝낸 학생이 없습니다.</div>';
 }
 
 function escape2(t){ return String(t).replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c])); }
