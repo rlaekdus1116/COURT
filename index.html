@@ -2240,7 +2240,7 @@ function renderStory(r){
     <p class="dim" style="margin-bottom:16px">${r.intro}</p>
     <div id="storyBox"></div><div id="storyAfter"></div>
     <div class="btn-row" id="toQ" style="display:none"><button class="btn">어디로 가야 할까?</button></div>`;
-  $('#toQ').querySelector('button').onclick=()=>renderQuestion(r);
+  $('#toQ').querySelector('button').onclick=()=>{ if(together()) return; renderQuestion(r); };
 
   const box=$('#storyBox'), st=r.story;
 
@@ -2254,7 +2254,7 @@ function renderStory(r){
         </div>
         <div class="dm-body" id="dmBody"></div>
       </div>
-      <div class="tap-hint" id="tapHint">화면을 누르면 다음</div>`;
+      ${together()?'':'<div class="tap-hint" id="tapHint">화면을 누르면 다음</div>'}`;
     playLines($('#dmBody'), st.lines, (line)=>{
       const [who,txt]=line;
       const d=document.createElement('div');
@@ -2264,7 +2264,7 @@ function renderStory(r){
 
   }else if(st.type==='board'){
     box.innerHTML=`<div class="board"><div class="bh">${st.header}</div><div id="rows"></div><div class="bf" id="views">조회 0</div></div>
-      <div class="tap-hint" id="tapHint">화면을 누르면 다음</div>`;
+      ${together()?'':'<div class="tap-hint" id="tapHint">화면을 누르면 다음</div>'}`;
     playLines($('#rows'), st.lines, (line)=>{
       const [nick,txt]=line;
       const d=document.createElement('div'); d.className='row';
@@ -2346,12 +2346,16 @@ function playLines(box, lines, make, done, typing){
     }
   };
 
-  seqTap=(e)=>{
-    if(e.target.closest('button')) return;      // 버튼은 그대로
-    e.preventDefault(); e.stopPropagation();
-    step();
-  };
-  document.addEventListener('click',seqTap,true);
+  if(!together()){
+    // 각자 풀기에서만 「눌러서 다음」을 씁니다.
+    // 다 같이 넘기기에서는 모두 같은 속도로 흘러갑니다.
+    seqTap=(e)=>{
+      if(e.target.closest('button')) return;
+      e.preventDefault(); e.stopPropagation();
+      step();
+    };
+    document.addEventListener('click',seqTap,true);
+  }
   step();
 }
 
