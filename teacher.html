@@ -332,7 +332,7 @@ body.locked .wrap{display:none}
   </div>
 
   <div class="card">
-    <h2>명예의 전당 <span class="hint">스피드 라운드를 끝낸 학생</span></h2>
+    <h2>명예의 전당 <span class="hint">스피드 라운드를 끝낸 학생 · 전체 순위</span></h2>
     <div id="hofBoard"><div class="empty">아직 끝낸 학생이 없습니다.</div></div>
   </div>
 
@@ -443,7 +443,7 @@ if(!FIREBASE_CONFIG.apiKey){
     const sp=Array.from({length:12},(_,k)=>Math.random()<.72);
     students[n]={name:n,phase:0,gauge:80+i*3,speed:sp,
       speedMs:sp.map(()=>2000+Math.floor(Math.random()*9000)),
-      life8:['student','judge','lawyer','boss'][i%4],
+      speedBest:{ok:sp.filter(Boolean).length, ms:60000+Math.floor(Math.random()*40000)}, speedTry:1+(i%3),
       ans:{1:{choice:c,ok:!!ok,whyOk:!!ok},
            2:{choice:i<5?'행정법원':'지방법원',ok:i<5}},
       done:{1:i<6}};
@@ -600,13 +600,12 @@ $('#btnClear').onclick= async ()=>{
 /* ── 엑셀로 내려받기 ────────────────────────
    CSV(UTF-8 BOM) — 엑셀에서 바로 열립니다.
    ───────────────────────────────────────── */
-const LIFE8_LABEL = {student:'다시 중학생', judge:'판사', lawyer:'변호사', boss:'떡볶이집 사장'};
 function downloadCSV(){
   const rows=Object.values(students).sort((a,b)=>(a.name||'').localeCompare(b.name||''));
   if(!rows.length){ alert('아직 기록이 없습니다.'); return; }
   const head=['학번 이름','진행'];
   for(let r=1;r<=5;r++) head.push(`${r}회차 선택`,`${r}회차 정답`,`${r}회차 이유`);
-  head.push('스피드 맞힌 수','스피드 총 시간(초)','8회차 선택','최종 한(恨)');
+  head.push('스피드 맞힌 수(최고)','스피드 총 시간(초)','스피드 시도 횟수','최종 한(恨)');
   const q=v=>`"${String(v==null?'':v).replace(/"/g,'""')}"`;
   const body=rows.map(s=>{
     const c=[q(s.name||''), q((PHASES.find(p=>p.i===(s.phase??-1))||{}).short||'—')];
@@ -614,10 +613,11 @@ function downloadCSV(){
       const a=(s.ans||{})[r];
       c.push(q(a?a.choice:''), q(a?(a.ok?'O':'X'):''), q(a?(a.whyOk===undefined?'':a.whyOk?'O':'X'):''));
     }
+    const sb=s.speedBest;
     const sp=s.speed||[];
-    const ms=(s.speedMs||[]).reduce((x,y)=>x+(y||0),0);
-    c.push(q(sp.length?sp.filter(Boolean).length:''), q(ms?(ms/1000).toFixed(1):''),
-           q(LIFE8_LABEL[s.life8]||''), q(s.gauge==null?'':s.gauge));
+    const okN=sb ? sb.ok : (sp.length?sp.filter(Boolean).length:'');
+    const ms =sb ? sb.ms : (s.speedMs||[]).reduce((x,y)=>x+(y||0),0);
+    c.push(q(okN), q(ms?(ms/1000).toFixed(1):''), q(s.speedTry||''), q(s.gauge==null?'':s.gauge));
     return c.join(',');
   });
   const csv='\uFEFF'+[head.map(q).join(','),...body].join('\r\n');
@@ -753,8 +753,10 @@ function paint(){
         const cls=a.ok?'ok':'no';
         return `<td><span class="chip ${cls}">${a.choice.replace('법원','').replace('헌법재판소','헌재')}</span></td>`;
       }).join('');
-      const sp=(s.speed||[]).filter(Boolean).length;
-      const spTxt=(s.speed||[]).length? `${sp}/12` : '·';
+      const sb=s.speedBest;
+      const sp=sb ? sb.ok : (s.speed||[]).filter(Boolean).length;
+      const spTxt=(sb || (s.speed||[]).length)
+        ? `${sp}/12${(s.speedTry||1)>1?` <span style="color:var(--mist-dim)">(${s.speedTry}회)</span>`:''}` : '·';
       const ph=PHASES.find(p=>p.i===(s.phase??-1));
       return `<tr><td>${escape2(s.name||'')}</td><td class="num">${ph?ph.short:'—'}</td>${cells}
         <td class="num">${spTxt}</td><td class="num">${s.gauge??''}</td></tr>`;
@@ -775,22 +777,18 @@ function paintPresent(){
 
   $('#prTotal').textContent = total;
 
-  if(phase===7){                                   // 엔딩 · 8회차
-    const LIFE8=[['student','다시 중학생'],['judge','판사'],['lawyer','변호사'],['boss','떡볶이집 사장']];
-    const picked=rows.map(([,v])=>v.life8).filter(Boolean);
-    $('#prTicket').textContent = '8회차';
-    $('#prTitle').textContent  = '우리 반은 뭐가 되기로 했을까';
+  if(phase===7){                                   // 엔딩 — 최종 순위
+    const hr=hofRows();
+    $('#prTicket').textContent = '마무리';
+    $('#prTitle').textContent  = '명예의 전당';
     $('#prAns').textContent    = '';
-    $('#prDone').textContent   = picked.length;
-    $('#prBars').innerHTML = picked.length
-      ? LIFE8.map(([k,label])=>{
-          const n=picked.filter(x=>x===k).length;
-          const pct=(n/picked.length*100).toFixed(0);
-          return `<div class="pb"><div class="pl"><span>${label}</span><b>${n}명</b></div>
-            <div class="pt2"><div class="pf" style="width:${pct}%"></div></div></div>`;
-        }).join('')
-      : '<div class="empty" style="text-align:center">아직 고른 학생이 없습니다.</div>';
-    $('#prNote').textContent = `${total-picked.length}명이 아직 고르는 중`;
+    $('#prDone').textContent   = hr.length;
+    $('#prBars').innerHTML = hr.length
+      ? hofHTML(hr)
+      : '<div class="empty" style="text-align:center">아직 끝낸 학생이 없습니다.</div>';
+    $('#prNote').textContent = hr.length
+      ? `1위 ${hr[0].name} · ${hr[0].ok}문제 · ${(hr[0].ms/1000).toFixed(1)}초`
+      : '';
     return;
   }
 
@@ -801,7 +799,7 @@ function paintPresent(){
     $('#prAns').textContent    = '';
     $('#prDone').textContent   = hr.length;
     $('#prBars').innerHTML = hr.length
-      ? hofHTML(hr,8)
+      ? hofHTML(hr)
       : '<div class="empty" style="text-align:center">아직 끝낸 학생이 없습니다.</div>';
     $('#prNote').textContent = hr.length
       ? `1위 ${hr[0].name} · ${hr[0].ok}문제 · ${(hr[0].ms/1000).toFixed(1)}초`
@@ -848,14 +846,19 @@ function paintPresent(){
 /* ── 명예의 전당 ── */
 function hofRows(){
   return Object.values(students)
-    .filter(v => Array.isArray(v.speed) && v.speed.filter(x=>x!==undefined).length>=12)
-    .map(v => ({ name:v.name||'',
-                 ok:v.speed.filter(Boolean).length,
-                 ms:(v.speedMs||[]).reduce((a,b)=>a+(b||0),0) }))
+    .map(v => {
+      if(v.speedBest) return {name:v.name||'', ok:v.speedBest.ok, ms:v.speedBest.ms, tries:v.speedTry||1};
+      if(Array.isArray(v.speed) && v.speed.filter(x=>x!==undefined).length>=12)
+        return {name:v.name||'', ok:v.speed.filter(Boolean).length,
+                ms:(v.speedMs||[]).reduce((a,b)=>a+(b||0),0), tries:v.speedTry||1};
+      return null;
+    })
+    .filter(Boolean)
     .sort((a,b)=> b.ok-a.ok || a.ms-b.ms);
 }
 function hofHTML(rows,limit){
-  return `<ol class="hof">` + rows.slice(0,limit).map((r,i)=>{
+  const list = limit ? rows.slice(0,limit) : rows;
+  return `<ol class="hof">` + list.map((r,i)=>{
     const rank=i+1;
     const medal = rank<=3 ? ['①','②','③'][rank-1] : rank;
     return `<li class="r${rank<=3?rank:0}">
@@ -869,7 +872,7 @@ function paintHOF(){
   const el=$('#hofBoard'); if(!el) return;
   const rows=hofRows();
   el.innerHTML = rows.length
-    ? hofHTML(rows,10)
+    ? hofHTML(rows)
     : '<div class="empty">아직 끝낸 학생이 없습니다.</div>';
 }
 
