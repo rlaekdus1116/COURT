@@ -703,6 +703,21 @@ p{margin-bottom:12px}
 
 /* ── 이유 선택 ───────────────────────────── */
 .why-opts{display:flex;flex-direction:column;gap:9px}
+.why-opts button.faded{opacity:.3}
+.why-opts button.is-answer{position:relative}
+.why-opts button.is-answer::after{
+  content:'정답';position:absolute;top:-9px;right:12px;
+  background:var(--jade);color:#0b1210;border-radius:2px;
+  font-size:11px;font-weight:700;letter-spacing:.14em;padding:2px 8px;
+}
+.why-reveal{
+  margin-top:16px;text-align:center;
+  animation:stpop .32s cubic-bezier(.3,1.6,.5,1);
+}
+.why-reveal .rv{font-family:var(--f-display);font-weight:700;font-size:17px}
+.why-reveal .rv.o{color:var(--jade)}
+.why-reveal .rv.x{color:var(--seal)}
+.why-reveal .wy{font-size:14px;color:var(--mist);margin-top:6px;line-height:1.6}
 .why-opts button{
   background:var(--ink-2);border:1px solid var(--ink-3);
   border-radius:3px;padding:15px 16px;cursor:pointer;
@@ -711,9 +726,15 @@ p{margin-bottom:12px}
   transition:border-color .14s,transform .14s;
 }
 .why-opts button:hover{border-color:var(--gold);transform:translateX(3px)}
-.why-opts button:disabled{opacity:.35;cursor:default;transform:none}
-.why-opts button.pick-ok{border-color:var(--jade);background:rgba(106,157,149,.12)}
-.why-opts button.pick-no{border-color:var(--seal);background:rgba(184,68,58,.1)}
+.why-opts button:disabled{cursor:default;transform:none}
+.why-opts button.pick-ok{
+  border-color:var(--jade);background:rgba(106,157,149,.22);
+  color:#dff0ec;opacity:1;box-shadow:0 0 0 1px var(--jade) inset;
+}
+.why-opts button.pick-no{
+  border-color:var(--seal);background:rgba(184,68,58,.18);
+  color:#f6ded9;opacity:1;
+}
 
 /* ── 대기 화면 ───────────────────────────── */
 .wait-head{
@@ -1210,6 +1231,109 @@ svg#mp-korea .mp-badge.on{opacity:1}
 
 @media (prefers-reduced-motion:reduce){
   *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
+}
+
+/* ═══════════════════════════════════════════
+   태블릿 가로 화면 (갤탭 등) — 폭과 글자를 키웁니다
+   ═══════════════════════════════════════════ */
+@media (min-width:820px){
+  #stage{max-width:760px;padding:0 28px}
+
+  h2{font-size:27px}
+  .eyebrow{font-size:12.5px}
+  .btn{font-size:19px;padding:18px}
+  .q{font-size:25px;margin:30px 0 18px}
+  .dim{font-size:16px}
+  p{font-size:16px}
+
+  .talk .who{font-size:12.5px}
+  .talk .line{font-size:20px}
+
+  .dm-head b{font-size:16px}
+  .dm-head span{font-size:12.5px}
+  .dm-b{font-size:17.5px;padding:11px 17px}
+  .dm-b.sys{font-size:13px}
+  .dm-b.block{font-size:14.5px}
+  .board .bh{font-size:13.5px}
+  .board .row{font-size:17.5px}
+  .board .row .nick{font-size:15px}
+  .board .bf{font-size:13.5px}
+  .scene-text{font-size:19px}
+  .doc{font-size:17px;padding:30px 26px}
+  .doc .dh{font-size:19px}
+  .tap-hint{font-size:14px}
+
+  .bal-q{font-size:12.5px}
+  .bal-t{font-size:26px}
+  .bal-opts button{font-size:20px;padding:26px 18px}
+  .bal-opts button small{font-size:14.5px}
+  .fall-head{font-size:15px}
+  .fall-n{font-size:32px}
+  .name-tag{font-size:19px;padding:6px 10px 4px}
+
+  .spin-lead{font-size:12.5px}
+  .spin-who{font-size:26px}
+  .reel{height:84px}
+  .reel-line{height:84px}
+  .reel-items div,.reel-idle div{height:84px;font-size:26px}
+  .spin-btn{font-size:22px;padding:20px}
+  .cheer-btn{font-size:18px;padding:17px}
+  .spin-count{font-size:15px}
+  .spin-count .cd{font-size:20px}
+  .pop-card{max-width:440px;padding:38px 28px 32px}
+  .pop-nm{font-size:56px}
+  .pop-sub{font-size:17px}
+  .pop-eye{font-size:13.5px}
+
+  .court .nm{font-size:18px}
+  .courts{gap:14px}
+  .verdict .stamp{transform:scale(1.15)}
+  .ending .l{font-size:18px}
+  .why-opts button{font-size:18px;padding:18px 18px}
+  .why-reveal .rv{font-size:20px}
+  .why-reveal .wy{font-size:16px}
+  .key{font-size:23px;padding:20px}
+  .tbl{font-size:16px}
+  .tbl th{font-size:13.5px}
+  .real{font-size:16px}
+  .answer-box{font-size:17px}
+
+  .speed-q{font-size:22px;min-height:104px}
+  .speed-opts button{font-size:18px;padding:18px 8px}
+  .sp-reveal .rv{font-size:19px}
+  .sp-reveal .wy{font-size:15px}
+  .sp-rule b{font-size:15px}
+  .sp-rule span{font-size:14px}
+  .streak{font-size:18px}
+
+  .hold-m{font-size:18px}
+  .hold-n{font-size:16px}
+  .hold-n b{font-size:20px}
+  .hold-s{font-size:14.5px}
+
+  .wait-head .ticketbig{font-size:50px;padding:16px 26px 12px}
+  .wait-head .msg{font-size:23px}
+  .wait-head .sub{font-size:16px}
+  .progress-box .ph{font-size:12.5px}
+  .pbar .pl{font-size:16px}
+
+  .hof-h{font-size:16px}
+  .hof-list li{font-size:16px;padding:10px 8px}
+  .hof-list li .nm{font-size:22px}
+  .hof-list li .sc{font-size:15px}
+  .hof-list li .tm{font-size:14px;min-width:54px}
+  .myrec{font-size:16px}
+  .hof-mine{font-size:15px}
+
+  .result-card{padding:34px 28px}
+  .result-card .nm{font-size:36px}
+  .result-card .big{font-size:62px}
+  .result-card .meta{font-size:16.5px}
+
+  .how .no{font-size:17px}
+  .how .tx{font-size:17px}
+  .ledger input{font-size:20px}
+  #lock .lk-msg,#lkMsg{font-size:28px}
 }
 </style>
 </head>
@@ -2513,15 +2637,26 @@ function renderWhy(r){
       S.ans[r.id].whyOk=!!ok;
       setGauge(ok?-5:+3);
       push();
-      if(!ok){
-        const right=[...box.querySelectorAll('button')].find(x=>x.textContent===w.opts.find(o=>o[1])[0]);
-        if(right) right.classList.add('pick-ok');
+      const rightTxt=w.opts.find(o=>o[1])[0];
+      const right=[...box.querySelectorAll('button')].find(x=>x.textContent===rightTxt);
+      if(right){ right.classList.add('pick-ok'); right.classList.add('is-answer'); }
+      box.querySelectorAll('button').forEach(x=>{
+        if(!x.classList.contains('pick-ok') && !x.classList.contains('pick-no')) x.classList.add('faded');
+      });
+      const rv=document.createElement('div');
+      rv.className='why-reveal';
+      rv.innerHTML = ok
+        ? `<div class="rv o">정답입니다</div><div class="wy">${esc(rightTxt)}</div>`
+        : `<div class="rv x">아쉽다 — 정답은 초록색</div><div class="wy">${esc(rightTxt)}</div>`;
+      $('#roundBody').appendChild(rv);
+      if(!together()){
+        const row=document.createElement('div');
+        row.className='btn-row';
+        row.innerHTML=`<button class="btn" onclick='renderExplain(ROUNDS[${S.round}])'>해설 보기</button>`;
+        $('#roundBody').appendChild(row);
+      }else{
+        setTimeout(()=>renderExplain(ROUNDS[S.round]), 2600);
       }
-      const row=document.createElement('div');
-      row.className='btn-row';
-      row.innerHTML=`<button class="btn" onclick='renderExplain(ROUNDS[${S.round}])'>해설 보기</button>`;
-      $('#roundBody').appendChild(row);
-      if(together()) setTimeout(()=>renderExplain(ROUNDS[S.round]), 1100);
     };
     box.appendChild(b);
   });
