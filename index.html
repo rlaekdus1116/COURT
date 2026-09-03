@@ -1549,8 +1549,8 @@ const STEPS6 = {
 const BALANCE = {
   0:{a:'사기꾼은 감옥 가는데<br>내 돈은 못 받기',
      b:'내 돈은 받는데<br>사기꾼은 처벌 안 받기'},
-  1:{a:'잘못 없이 징계받고<br>조용히 넘어가기',
-     b:'교육청이랑<br>3년간 싸우기'},
+  1:{a:'내가 안 했는데<br>벌 받고 조용히 넘어가기<br><small>3일 뒤면 다들 잊는다</small>',
+     b:'3년 동안 싸워서<br>「내가 안 했다」를 증명하기<br><small>3년 내내 그 얘기만 하게 된다</small>'},
   2:{a:'놀림받는 이름으로<br>평생 살기<br><small>출석 부를 때마다 웃음소리</small>',
      b:'이름 바꾸고<br>서류를 전부 다시 만들기<br><small>주민등록증 · 여권 · 통장 · 학생증<br>보험 · 휴대폰 · 게임 계정</small>'},
   3:{a:'빚 3억을<br>30년 동안 갚기<br><small>매달 83만 원씩</small>',
@@ -1850,15 +1850,18 @@ function holdCount(kind){
 function holdStrip(kind, msg){
   return `<div class="hold" data-kind="${kind}">
     <div class="hold-m"><span class="live-dot"></span>${msg}</div>
-    <div class="hold-n" id="holdN">집계 중…</div>
+    <div class="hold-n">집계 중…</div>
     <div class="hold-s">선생님이 넘겨줄 때까지 기다려 주세요</div>
   </div>`;
 }
+/* 지금 보이는 화면 안의 대기 줄만 갱신합니다
+   (다른 화면에 남아 있던 대기 줄을 잡아서 숫자가 안 올라가던 문제) */
 function paintHold(){
-  const box=document.querySelector('.hold'); if(!box) return;
-  const c=holdCount(box.dataset.kind);
-  const el=$('#holdN'); if(!el) return;
-  el.innerHTML = c.total ? `<b>${c.done}</b> / ${c.total} 명 제출` : '나 혼자 있습니다';
+  document.querySelectorAll('.screen.on .hold[data-kind]').forEach(box=>{
+    const el=box.querySelector('.hold-n'); if(!el) return;
+    const c=holdCount(box.dataset.kind);
+    el.innerHTML = c.total ? `<b>${c.done}</b> / ${c.total} 명 제출` : '나 혼자 있습니다';
+  });
 }
 
 function gotoPhase(n){
@@ -2360,7 +2363,17 @@ function roundFace(id){
   return `<div class="face"><img src="${IMG[key]}" alt=""><div class="cap">${label}</div></div>`;
 }
 
-function showQBtn(){ const b=$('#toQ'); if(b) b.style.display='flex'; }
+function showQBtn(){
+  if(together()){
+    // 다 같이 넘기기 — 선생님이 넘길 때까지 여기서 멈춥니다
+    const b=$('#toQ'); if(b) b.style.display='none';
+    const a=$('#storyAfter');
+    if(a && !a.querySelector('.hold'))
+      a.insertAdjacentHTML('beforeend','<div class="hold"><div class="hold-s">다 읽었으면 잠시 기다려 주세요.<br>선생님이 넘겨줍니다.</div></div>');
+    return;
+  }
+  const b=$('#toQ'); if(b) b.style.display='flex';
+}
 
 function renderQuestion(r){
   $('#roundBody').innerHTML=`
