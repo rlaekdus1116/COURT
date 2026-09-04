@@ -95,6 +95,16 @@ body{
 }
 
 .gauge-wrap{flex:1 1 auto;min-width:0}
+.sfx-btn{
+  flex:0 0 auto;background:none;border:none;cursor:pointer;
+  color:var(--mist-dim);padding:4px;line-height:0;
+  transition:color .15s;
+}
+.sfx-btn:hover{color:var(--paper)}
+.sfx-btn .slash{opacity:0;transition:opacity .15s}
+.sfx-btn.off{color:#4d5a5f}
+.sfx-btn.off .wave{opacity:0}
+.sfx-btn.off .slash{opacity:1}
 .gauge-top{
   display:flex;justify-content:space-between;align-items:baseline;
   font-size:11px;letter-spacing:.14em;color:var(--mist-dim);
@@ -1362,6 +1372,14 @@ svg#mp-korea .mp-badge.on{opacity:1}
       <div class="gauge-top"><span>한(恨)</span><b id="gaugeNum">100</b></div>
       <div class="gauge-bar"><div class="gauge-fill" id="gaugeFill"></div></div>
     </div>
+    <button class="sfx-btn" id="sfxBtn" title="소리 켜기/끄기" aria-label="소리">
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M4 9v6h4l5 4V5L8 9H4z"/>
+        <path class="wave" d="M16.5 8.5a5 5 0 0 1 0 7"/>
+        <path class="wave" d="M19 6a8.5 8.5 0 0 1 0 12"/>
+        <path class="slash" d="M4 20 20 4"/>
+      </svg>
+    </button>
   </header>
 
   <main id="screens">
@@ -1577,11 +1595,11 @@ const ROUNDS = [
 {
   id:3, ticket:'3회차', title:'내 이름이 싫어요',
   art:'bg-classroom.webp — 쉬는 시간 교실',
-  intro:'억울이, 중2. 태어날 때부터 이 이름이었다.',
+  intro:'억울이의 진짜 이름은 <b>석을년</b>. 태어날 때부터 이 이름이었다.',
   story:{type:'dm', handle:'2학년 3반 단뎀', sub:'참여자 28명', lines:[
-    ['them','야 억울아'],
+    ['them','야 을년아'],
     ['them','ㅋㅋㅋㅋㅋ 이름 진짜'],
-    ['them','억울아 오늘도 억울하냐?'],
+    ['them','을년아 오늘도 억울하냐?'],
     ['me','...'],
     ['sys','12년째 반복 중'],
     ['me','나 이름 바꿀래'],
@@ -1717,6 +1735,12 @@ const S = { id:'', key:'', gauge:100, round:0, phase:-1, wrong:[],
             ans:{}, bonus:{}, done:{}, balance:{}, seenSpin:{},
             speedIdx:0, speedRes:[], speedMs:[], speedBest:null, speedTry:0, cheer:null, savedAt:0 };
 const $ = s => document.querySelector(s);
+window.addEventListener('DOMContentLoaded',()=>{
+  const btn=document.getElementById('sfxBtn');
+  if(!btn) return;
+  btn.classList.toggle('off', !SFX.on);
+  btn.onclick=()=>btn.classList.toggle('off', !SFX.toggle());
+});
 
 /* 그림은 이 파일 안에 통째로 들어 있습니다 (별도 폴더 없음) */
 const IMG = {
@@ -1804,6 +1828,132 @@ function setArt(key,op){
   bd.style.opacity=op;
   bd.classList.add('on'); sc.classList.add('on');
 }
+
+/* ═══════════════════════════════════════════
+   소리 — 전자음 없이, 나무·종이·북 소리로만
+   (전부 그 자리에서 만들어 씁니다. 음원 파일 없음)
+   ═══════════════════════════════════════════ */
+const SFX = (function(){
+  let ctx=null, on=true;
+  try{ on = localStorage.getItem('eogul_sfx')!=='off'; }catch(e){}
+
+  const start=()=>{
+    if(!ctx){
+      const AC=window.AudioContext||window.webkitAudioContext;
+      if(!AC) return null;
+      ctx=new AC();
+    }
+    if(ctx.state==='suspended') ctx.resume();
+    return ctx;
+  };
+  /* 브라우저는 사람이 한 번 누른 뒤에야 소리를 허락합니다 */
+  ['pointerdown','keydown'].forEach(ev=>
+    document.addEventListener(ev, ()=>start(), {once:false, passive:true}));
+
+  const noise=(dur)=>{
+    const n=Math.floor(ctx.sampleRate*dur);
+    const buf=ctx.createBuffer(1,n,ctx.sampleRate);
+    const d=buf.getChannelData(0);
+    for(let i=0;i<n;i++) d[i]=(Math.random()*2-1);
+    const src=ctx.createBufferSource(); src.buffer=buf; return src;
+  };
+  const env=(g,peak,dur,t0)=>{
+    g.gain.setValueAtTime(0.0001,t0);
+    g.gain.exponentialRampToValueAtTime(peak,t0+0.004);
+    g.gain.exponentialRampToValueAtTime(0.0001,t0+dur);
+  };
+
+  /* 나무를 딱 치는 소리 — 법봉 */
+  function knock(vol=1, pitch=1){
+    if(!on||!start()) return;
+    const t=ctx.currentTime;
+    const src=noise(0.09);
+    const bp=ctx.createBiquadFilter(); bp.type='bandpass';
+    bp.frequency.value=1400*pitch; bp.Q.value=1.1;
+    const g=ctx.createGain(); env(g,0.5*vol,0.085,t);
+    src.connect(bp).connect(g).connect(ctx.destination);
+    src.start(t); src.stop(t+0.1);
+
+    const o=ctx.createOscillator(); o.type='sine';
+    o.frequency.setValueAtTime(190*pitch,t);
+    o.frequency.exponentialRampToValueAtTime(85*pitch,t+0.07);
+    const og=ctx.createGain(); env(og,0.42*vol,0.12,t);
+    o.connect(og).connect(ctx.destination);
+    o.start(t); o.stop(t+0.14);
+  }
+
+  /* 낮게 울리는 북 — 오답 */
+  function thud(vol=1){
+    if(!on||!start()) return;
+    const t=ctx.currentTime;
+    const o=ctx.createOscillator(); o.type='sine';
+    o.frequency.setValueAtTime(105,t);
+    o.frequency.exponentialRampToValueAtTime(42,t+0.35);
+    const g=ctx.createGain(); env(g,0.5*vol,0.42,t);
+    o.connect(g).connect(ctx.destination);
+    o.start(t); o.stop(t+0.45);
+
+    const src=noise(0.16);
+    const lp=ctx.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=420;
+    const ng=ctx.createGain(); env(ng,0.3*vol,0.16,t);
+    src.connect(lp).connect(ng).connect(ctx.destination);
+    src.start(t); src.stop(t+0.18);
+  }
+
+  /* 종이 스치는 소리 — 말풍선 · 서류 */
+  function paper(vol=1){
+    if(!on||!start()) return;
+    const t=ctx.currentTime;
+    const src=noise(0.12);
+    const hp=ctx.createBiquadFilter(); hp.type='highpass'; hp.frequency.value=2600;
+    const bp=ctx.createBiquadFilter(); bp.type='bandpass'; bp.frequency.value=4800; bp.Q.value=0.6;
+    const g=ctx.createGain();
+    g.gain.setValueAtTime(0.0001,t);
+    g.gain.exponentialRampToValueAtTime(0.09*vol,t+0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001,t+0.12);
+    src.connect(hp).connect(bp).connect(g).connect(ctx.destination);
+    src.start(t); src.stop(t+0.14);
+  }
+
+  /* 딱 — 룰렛 돌 때, 초읽기 */
+  function tick(vol=1){
+    if(!on||!start()) return;
+    const t=ctx.currentTime;
+    const src=noise(0.03);
+    const bp=ctx.createBiquadFilter(); bp.type='bandpass';
+    bp.frequency.value=2600; bp.Q.value=3;
+    const g=ctx.createGain(); env(g,0.22*vol,0.03,t);
+    src.connect(bp).connect(g).connect(ctx.destination);
+    src.start(t); src.stop(t+0.04);
+  }
+
+  /* 도장 — 판결 */
+  function stamp(){ knock(1.05,0.8); setTimeout(()=>knock(0.5,1.5),55); }
+
+  /* 룰렛 감속에 맞춰 딱딱딱 */
+  function reel(dur=2100){
+    if(!on||!start()) return;
+    let t=0, gap=45;
+    const step=()=>{
+      if(t>dur) return;
+      tick(0.9 - 0.5*(t/dur));
+      t+=gap; gap*=1.16;
+      setTimeout(step, gap);
+    };
+    step();
+  }
+
+  return {
+    knock, thud, paper, tick, stamp, reel,
+    get on(){ return on; },
+    toggle(){
+      on=!on;
+      try{ localStorage.setItem('eogul_sfx', on?'on':'off'); }catch(e){}
+      if(on) knock(0.6);
+      return on;
+    }
+  };
+})();
 
 const GMAX=130; // 한이 더 쌓일 여지를 둔다 (100에서 시작하므로)
 function setGauge(delta){
@@ -2033,6 +2183,7 @@ function startBalance(n){
     <div id="balTail"></div>`;
   $('#balOpts').querySelectorAll('button').forEach(btn=>{
     btn.onclick=()=>{
+      SFX.knock(0.5,1.3);
       S.balance[n]=btn.dataset.v;
       push();
       if(!together()) return showBalanceResult(n);
@@ -2294,7 +2445,10 @@ function runReel(n){
   const live=$('#spinLive'); if(live) live.innerHTML='';
   const who=$('#spinWho'); if(who) who.innerHTML='<b class="pulse">돌아갑니다</b>';
   const len=+reel.dataset.len || 15;
-  const dist=(len-1)*70;
+  // 칸 높이를 실제 화면에서 잽니다 (태블릿에서는 84px — 70px 로 고정하면 엉뚱한 칸에 섭니다)
+  const cell=(reel.firstElementChild ? reel.firstElementChild.getBoundingClientRect().height : 70) || 70;
+  const dist=(len-1)*cell;
+  SFX.reel(2100);
   reel.style.transition='transform 2.1s cubic-bezier(.12,.85,.22,1)';
   reel.style.transform=`translateY(-${dist}px)`;
   const ctl=$('#spinCtl'); if(ctl) ctl.innerHTML='';
@@ -2303,6 +2457,7 @@ function runReel(n){
     if(w) w.innerHTML=`<b>${LIVES[n]}</b>(으)로 태어났습니다`;
     const box=$('#reelBox');
     if(box){ box.classList.add('landed'); }
+    SFX.knock(1.1,0.9);
   },2200);
   setTimeout(()=>{
     reelRunning=false;
@@ -2421,6 +2576,7 @@ function renderStory(r){
 
   }else if(st.type==='doc'){
     box.innerHTML=`<div class="doc fly"><div class="dh">${st.head}</div><div>${st.body}</div><div class="from">${st.from}</div></div>`;
+    setTimeout(()=>SFX.knock(0.7,1.1), 620);
     setTimeout(()=>{
       const el=$('#storyAfter'); if(el) el.innerHTML=`<p class="dim" style="margin-top:16px">${st.after}</p>`;
       showQBtn();
@@ -2455,6 +2611,7 @@ function playLines(box, lines, make, done, typing){
     }
     const line=lines[i++];
     box.appendChild(make(line));
+    SFX.paper(line[0]==='me' ? 0.7 : 1);
     const scroller=$('#s-round');
     if(scroller) scroller.scrollTop=scroller.scrollHeight;
 
@@ -2514,7 +2671,7 @@ function renderQuestion(r){
     const btn=document.createElement('button');
     btn.className='court';
     btn.innerHTML=`${courtSVG(name)}<span class="nm">${name}</span>`;
-    btn.onclick=()=>{ c.querySelectorAll('.court').forEach(x=>x.disabled=true); choose(r,name); };
+    btn.onclick=()=>{ SFX.knock(0.55,1.25); c.querySelectorAll('.court').forEach(x=>x.disabled=true); choose(r,name); };
     c.appendChild(btn);
   });
   const mine=S.ans[r.id];
@@ -2560,7 +2717,7 @@ function showVerdict(r){
     $('#roundBody').innerHTML=`
       <div class="verdict"><div class="stamp">미제출</div></div>
       <p class="dim" style="text-align:center;margin-bottom:12px">이번엔 답을 못 냈습니다</p>
-      <p style="text-align:center;font-size:17px">정답은 <b>${r.answer}</b>입니다.</p>
+      <p style="text-align:center;font-size:18px">정답 · <b>${r.answer}</b></p>
       ${renderMiniDist(r)}`;
     $('#s-round').scrollTop=0;
     return;
@@ -2591,11 +2748,12 @@ function showWrong(r,pick){
   $('#stage').classList.remove('shake'); void $('#stage').offsetWidth; $('#stage').classList.add('shake');
   setTimeout(()=>{ d.className=''; },1200);
 
+  SFX.thud();
   setTimeout(()=>{
     setArt(null);
     const lines=r.endings[pick]||[['직원','여긴 그런 거 안 합니다.']];
     $('#roundBody').innerHTML=`
-      <div class="verdict"><div class="stamp">각하</div></div>
+      <div class="verdict"><div class="stamp">오답</div></div>
       <p class="dim" style="text-align:center;margin-bottom:10px">${pick}에 갔다</p>
       <div class="shock-art"><img src="${IMG.shock}" alt=""></div>
       <div class="ending">${lines.map(([w,t])=>`<div class="l"><span class="sp">${w}</span> &nbsp;${esc(t)}</div>`).join('')}</div>
@@ -2607,10 +2765,11 @@ function showWrong(r,pick){
 }
 
 function showCorrect(r,pick){
+  SFX.stamp();
   setArt('gavel', .30);
   $('#roundBody').innerHTML=`
-    <div class="verdict"><div class="stamp ok">인용</div></div>
-    <p style="text-align:center;font-size:18px"><b>${r.answer}</b>, 맞았습니다.</p>
+    <div class="verdict"><div class="stamp ok">정답</div></div>
+    <p style="text-align:center;font-size:19px"><b>${r.answer}</b></p>
     ${together()?renderMiniDist(r)+'<div class="hold"><div class="hold-s">선생님이 넘겨줄 때까지 기다려 주세요</div></div>'
                 :`<div class="btn-row"><button class="btn" onclick='renderWhy(ROUNDS[${S.round}])'>왜 그럴까?</button></div>`}`;
   $('#s-round').scrollTop=0;
@@ -2633,6 +2792,7 @@ function renderWhy(r){
     b.textContent=txt;
     b.onclick=()=>{
       box.querySelectorAll('button').forEach(x=>x.disabled=true);
+      ok ? SFX.knock(0.7,1.1) : SFX.thud(0.7);
       b.classList.add(ok?'pick-ok':'pick-no');
       S.ans[r.id].whyOk=!!ok;
       setGauge(ok?-5:+3);
@@ -2646,8 +2806,8 @@ function renderWhy(r){
       const rv=document.createElement('div');
       rv.className='why-reveal';
       rv.innerHTML = ok
-        ? `<div class="rv o">정답입니다</div><div class="wy">${esc(rightTxt)}</div>`
-        : `<div class="rv x">아쉽다 — 정답은 초록색</div><div class="wy">${esc(rightTxt)}</div>`;
+        ? `<div class="rv o">정답</div><div class="wy">${esc(rightTxt)}</div>`
+        : `<div class="rv x">오답 — 정답은 초록색</div><div class="wy">${esc(rightTxt)}</div>`;
       $('#roundBody').appendChild(rv);
       if(!together()){
         const row=document.createElement('div');
@@ -2927,7 +3087,7 @@ function nextSpeed(){
     const t=$('#tnum'); if(!t) return;
     t.textContent=left;
     ring.style.strokeDashoffset=(169.6*(lim-left)/lim).toFixed(1);
-    if(left<=Math.ceil(lim/4)) ring.style.stroke='var(--seal)';
+    if(left<=Math.ceil(lim/4)){ ring.style.stroke='var(--seal)'; SFX.tick(0.8); }
     if(left<=0) answerSpeed(null);
   },1000);
 }
@@ -2954,10 +3114,11 @@ function answerSpeed(pick){
   const rv=$('#rv');
   if(rv) rv.innerHTML = ok
     ? `<div class="rv o">정답 · ${item.a}</div><div class="wy">${item.w}</div>`
-    : `<div class="rv x">${pick===null?'시간 초과':'아쉽다'} · 정답은 <u>${item.a}</u></div><div class="wy">${item.w}</div>`;
+    : `<div class="rv x">${pick===null?'시간 초과':'오답'} · 정답 <u>${item.a}</u></div><div class="wy">${item.w}</div>`;
 
-  if(ok){ setGauge(-3); }
+  if(ok){ SFX.knock(0.75,1.35); setGauge(-3); }
   else{
+    SFX.thud(0.8);
     setGauge(+2);
     $('#flash').classList.remove('go'); void $('#flash').offsetWidth; $('#flash').classList.add('go');
   }
